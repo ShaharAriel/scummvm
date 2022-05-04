@@ -23,6 +23,7 @@
 #define CHEWY_ROOM_H
 
 #include "chewy/detail.h"
+#include "chewy/mcga_graphics.h"
 #include "chewy/object_extra.h"
 
 namespace Chewy {
@@ -62,7 +63,6 @@ struct RaumBlk {
 	RoomMovObject *Rmo;
 	RoomStaticInventory *Rsi;
 
-	char RoomDir[9];
 	int16 AkAblage;
 	byte **_detImage;
 	int16 *DetKorrekt;

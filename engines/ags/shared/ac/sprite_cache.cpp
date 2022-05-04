@@ -374,7 +374,7 @@ size_t SpriteCache::LoadSprite(sprkey_t index) {
 	if (!image) {
 		Debug::Printf(kDbgGroup_SprCache, kDbgMsg_Warn,
 			"LoadSprite: failed to load sprite %d:\n%s\n - remapping to sprite 0.", index,
-			err ? err->FullMessage().GetCStr() : "Sprite does not exist.");
+			err ? "Sprite does not exist." : err->FullMessage().GetCStr());
 		RemapSpriteToSprite0(index);
 		return 0;
 	}
@@ -423,21 +423,23 @@ void SpriteCache::RemapSpriteToSprite0(sprkey_t index) {
 #endif
 }
 
-int SpriteCache::SaveToFile(const String &filename, bool compressOutput, SpriteFileIndex &index) {
-	std::vector<Bitmap *> sprites;
-	for (const auto &data : _spriteData) {
+int SpriteCache::SaveToFile(const String &filename, int store_flags, SpriteCompression compress, SpriteFileIndex &index) {
+	std::vector<std::pair<bool, Bitmap *>> sprites;
+	for (size_t i = 0; i < _spriteData.size(); ++i) {
 		// NOTE: this is a horrible hack:
 		// because Editor expects slightly different RGB order, it swaps colors
 		// when loading them (call to initialize_sprite), so here we basically
 		// unfix that fix to save the data in a way that engine will expect.
 		// TODO: perhaps adjust the editor to NOT need this?!
-		pre_save_sprite(data.Image);
-		sprites.push_back(data.Image);
+		pre_save_sprite(_spriteData[i].Image);
+		sprites.push_back(std::make_pair(DoesSpriteExist(i), _spriteData[i].Image));
 	}
-	return SaveSpriteFile(filename, sprites, &_file, compressOutput, index);
+	return SaveSpriteFile(filename, sprites, &_file, store_flags, compress, index);
 }
 
 HError SpriteCache::InitFile(const String &filename, const String &sprindex_filename) {
+	Reset();
+
 	std::vector<Size> metrics;
 	HError err = _file.OpenFile(filename, sprindex_filename, metrics);
 	if (!err)
@@ -453,7 +455,6 @@ HError SpriteCache::InitFile(const String &filename, const String &sprindex_file
 		if (!metrics[i].IsNull()) {
 			// Existing sprite
 			_spriteData[i].Flags = SPRCACHEFLAG_ISASSET;
-			_spriteData[i].Image = nullptr;
 			get_new_size_for_sprite(i, metrics[i].Width, metrics[i].Height, _sprInfos[i].Width, _sprInfos[i].Height);
 		} else {
 			// Handle empty slot: remap to sprite 0

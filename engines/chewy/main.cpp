@@ -22,9 +22,10 @@
 #include "common/config-manager.h"
 #include "chewy/main.h"
 #include "chewy/chewy.h"
+#include "chewy/cursor.h"
 #include "chewy/events.h"
+#include "chewy/mcga_graphics.h"
 #include "chewy/menus.h"
-#include "chewy/ngshext.h"
 #include "chewy/dialogs/files.h"
 #include "chewy/dialogs/inventory.h"
 #include "chewy/dialogs/main_menu.h"
@@ -91,116 +92,77 @@ void free_buffers() {
 
 void cursorChoice(int16 nr) {
 	int16 ok = true;
+	int16 delay = -1;
+
 	if (nr != CUR_USER) {
 		_G(curblk).sprite = _G(curtaf)->_image;
-		_G(curani)._delay = (1 + _G(gameState).DelaySpeed) * 5;
+		delay = (1 + _G(gameState).DelaySpeed) * 5;
 	}
 	switch (nr) {
 	case CUR_WALK:
-		_G(curani)._start = 0;
-		_G(curani)._end = 3;
+		_G(cur)->setAnimation(0, 3, delay);
 		break;
-
 	case CUR_NO_WALK:
-		_G(curani)._start = 8;
-		_G(curani)._end = 8;
+		_G(cur)->setAnimation(8, 8, delay);
 		break;
-
 	case CUR_USE:
-		_G(curani)._start = 4;
-		_G(curani)._end = 7;
+		_G(cur)->setAnimation(4, 7, delay);
 		break;
-
 	case CUR_NO_USE:
-		_G(curani)._start = 4;
-		_G(curani)._end = 4;
+		_G(cur)->setAnimation(4, 4, delay);
 		break;
-
 	case CUR_NOPE:
-		_G(curani)._start = 9;
-		_G(curani)._end = 12;
+		_G(cur)->setAnimation(9, 12, delay);
 		break;
-
 	case CUR_LOOK:
-		_G(curani)._start = 13;
-		_G(curani)._end = 16;
+		_G(cur)->setAnimation(13, 16, delay);
 		break;
-
 	case CUR_NO_LOOK:
-		_G(curani)._start = 16;
-		_G(curani)._end = 16;
+		_G(cur)->setAnimation(16, 16, delay);
 		break;
-
 	case CUR_TALK:
-		_G(curani)._start = 17;
-		_G(curani)._end = 20;
+		_G(cur)->setAnimation(17, 20, delay);
 		break;
-
 	case CUR_NO_TALK:
-		_G(curani)._start = 17;
-		_G(curani)._end = 17;
+		_G(cur)->setAnimation(17, 17, delay);
 		break;
-
 	case CUR_INVENT:
-		_G(curani)._start = 21;
-		_G(curani)._end = 24;
+		_G(cur)->setAnimation(21, 24, delay);
 		break;
-
 	case CUR_AK_INVENT:
-		_G(curani)._start = _G(gameState).AkInvent;
-		_G(curani)._end = _G(gameState).AkInvent;
+		_G(cur)->setAnimation(_G(gameState).AkInvent, _G(gameState).AkInvent, delay);
 		_G(curblk).sprite = &_G(inv_spr)[0];
 		_G(gameState).inv_cur = true;
 		break;
-
 	case CUR_SAVE:
-		_G(curani)._start = 25;
-		_G(curani)._end = 25;
+		_G(cur)->setAnimation(25, 25, delay);
 		break;
-
 	case CUR_EXIT_LEFT:
-		_G(curani)._start = EXIT_LEFT_SPR;
-		_G(curani)._end = EXIT_LEFT_SPR;
+		_G(cur)->setAnimation(EXIT_LEFT_SPR, EXIT_LEFT_SPR, delay);
 		break;
-
 	case CUR_EXIT_RIGHT:
-		_G(curani)._start = EXIT_RIGHT_SPR;
-		_G(curani)._end = EXIT_RIGHT_SPR;
+		_G(cur)->setAnimation(EXIT_RIGHT_SPR, EXIT_RIGHT_SPR, delay);
 		break;
-
 	case CUR_EXIT_TOP:
-		_G(curani)._start = EXIT_ABOVE_SPR;
-		_G(curani)._end = EXIT_ABOVE_SPR;
+		_G(cur)->setAnimation(EXIT_ABOVE_SPR, EXIT_ABOVE_SPR, delay);
 		break;
-
 	case CUR_EXIT_BOTTOM:
-		_G(curani)._start = EXIT_BOTTOM_SPR;
-		_G(curani)._end = EXIT_BOTTOM_SPR;
+		_G(cur)->setAnimation(EXIT_BOTTOM_SPR, EXIT_BOTTOM_SPR, delay);
 		break;
-
 	case CUR_DISK:
-		_G(curani)._start = 30;
-		_G(curani)._end = 30;
+		_G(cur)->setAnimation(30, 30, delay);
 		break;
-
 	case CUR_HOWARD:
-		_G(curani)._start = 31;
-		_G(curani)._end = 31;
+		_G(cur)->setAnimation(31, 31, delay);
 		break;
-
 	case CUR_NICHELLE:
-		_G(curani)._start = 37;
-		_G(curani)._end = 37;
+		_G(cur)->setAnimation(37, 37, delay);
 		break;
-
 	case CUR_ZEIGE:
-		_G(curani)._start = 9;
-		_G(curani)._end = 9;
+		_G(cur)->setAnimation(9, 9, delay);
 		break;
 	case CUR_USER:
-
 		break;
-
 	default:
 		ok = false;
 		break;
@@ -208,9 +170,8 @@ void cursorChoice(int16 nr) {
 
 	if (ok) {
 		_cursorMoveFl = true;
-		_G(cur)->set_cur_ani(&_G(curani));
-		_G(gameState)._curWidth = READ_LE_INT16(_G(curblk).sprite[_G(curani)._start]);
-		_G(gameState)._curHeight = READ_LE_INT16(_G(curblk).sprite[_G(curani)._start] + 2);
+		_G(gameState)._curWidth = READ_LE_INT16(_G(curblk).sprite[_G(cur)->getAnimStart()]);
+		_G(gameState)._curHeight = READ_LE_INT16(_G(curblk).sprite[_G(cur)->getAnimStart()] + 2);
 	}
 }
 
@@ -670,8 +631,8 @@ void setupScreen(SetupScreenMode mode) {
 }
 
 void mous_obj_action(int16 nr, int16 mode, int16 txt_mode, int16 txt_nr) {
-	int16 anz = 0;
-	char *str_adr = nullptr;
+	const uint8 roomNum = _G(room)->_roomInfo->_roomNr;
+	Common::StringArray desc;
 
 	if (mode == DO_SETUP) {
 
@@ -680,19 +641,19 @@ void mous_obj_action(int16 nr, int16 mode, int16 txt_mode, int16 txt_nr) {
 			switch (txt_mode) {
 			case INVENTORY_NORMAL:
 			case INVENTORY_STATIC:
-				str_adr = _G(atds)->ats_get_txt(txt_nr, TXT_MARK_NAME, &anz, ATS_DATA);
+				desc = _G(atds)->getTextArray(roomNum, txt_nr, ATS_DATA);
 				break;
 			default:
 				break;
 			}
 
-			if (str_adr) {
+			if (desc.size() > 0) {
 				_G(fontMgr)->setFont(_G(font8));
 				int16 x = g_events->_mousePos.x;
 				int16 y = g_events->_mousePos.y;
-				calcTxtXy(&x, &y, str_adr, anz);
-				for (int16 i = 0; i < anz; i++)
-					printShadowed(x, y + i * 10, 255, 300, 0, _G(scr_width), _G(txt)->strPos(str_adr, i));
+				calcTxtXy(&x, &y, desc);
+				for (int16 i = 0; i < (int16)desc.size(); i++)
+					printShadowed(x, y + i * 10, 255, 300, 0, _G(scr_width), desc[i].c_str());
 			}
 		}
 	}
@@ -1364,7 +1325,7 @@ int16 calcMouseText(int16 x, int16 y, int16 mode) {
 					}
 
 					int16 action_ret = 0;
-					if (!_G(atds)->getControlBit(txtNr, ATS_ACTIVE_BIT, ATS_DATA)) {
+					if (!_G(atds)->getControlBit(txtNr, ATS_ACTIVE_BIT)) {
 						if (_G(menu_item) != CUR_WALK && _G(menu_item) != CUR_USE) {
 							if (x + _G(gameState).scrollx > _G(spieler_vector)[P_CHEWY].Xypos[0])
 								setPersonSpr(P_RIGHT, P_CHEWY);
@@ -1373,18 +1334,18 @@ int16 calcMouseText(int16 x, int16 y, int16 mode) {
 						}
 					}
 
-					if (_G(atds)->getControlBit(txtNr, ATS_ACTION_BIT, ATS_DATA)) {
+					if (_G(atds)->getControlBit(txtNr, ATS_ACTION_BIT)) {
 						action_ret = atsAction(txtNr, txtMode, ATS_ACTION_VOR);
 					}
 					
-					if (ok && !_G(atds)->getControlBit(txtNr, ATS_ACTIVE_BIT, ATS_DATA)) {
+					if (ok && !_G(atds)->getControlBit(txtNr, ATS_ACTIVE_BIT)) {
 						if (startAtsWait(txtNr, txtMode, 14, ATS_DATA))
 							dispFl = false;
 					} else {
 						ret = -1;
 					}
 					
-					if (_G(atds)->getControlBit(txtNr, ATS_ACTION_BIT, ATS_DATA)) {
+					if (_G(atds)->getControlBit(txtNr, ATS_ACTION_BIT)) {
 						action_ret = atsAction(txtNr, txtMode, ATS_ACTION_NACH);
 						actionFl = true;
 						if (action_ret)
@@ -1392,7 +1353,7 @@ int16 calcMouseText(int16 x, int16 y, int16 mode) {
 					}
 					
 					if (!ok && !action_ret) {
-						if (inv_no_use_mode != -1 && !_G(atds)->getControlBit(txtNr, ATS_ACTIVE_BIT, ATS_DATA)) {
+						if (inv_no_use_mode != -1 && !_G(atds)->getControlBit(txtNr, ATS_ACTIVE_BIT)) {
 							actionFl = calc_inv_no_use(idx + (_G(gameState)._personRoomNr[P_CHEWY] * 100), inv_no_use_mode);
 							if (actionFl)
 								ret = txtNr;
@@ -1400,7 +1361,7 @@ int16 calcMouseText(int16 x, int16 y, int16 mode) {
 					}
 					
 					if (ok && !action_ret && txtMode == TXT_MARK_USE && dispFl) {
-						if (!_G(atds)->getControlBit(txtNr, ATS_ACTIVE_BIT, ATS_DATA)) {
+						if (!_G(atds)->getControlBit(txtNr, ATS_ACTIVE_BIT)) {
 							if (_G(menu_item) != CUR_WALK) {
 								if (x + _G(gameState).scrollx > _G(spieler_vector)[P_CHEWY].Xypos[0])
 									setPersonSpr(P_RIGHT, P_CHEWY);
@@ -1420,16 +1381,15 @@ int16 calcMouseText(int16 x, int16 y, int16 mode) {
 				}
 
 				if (dispFl && !actionFl) {
-					int16 anz;
-					char *str_ = _G(atds)->ats_get_txt(txtNr, TXT_MARK_NAME, &anz, ATS_DATA);
-					if (str_ != 0) {
-						//const uint8 roomNr = _G(room)->_roomInfo->_roomNr;
-						//Common::StringArray s = _G(atds)->getTextArray(roomNr + 500, txtNr);
+					const uint8 roomNum = _G(room)->_roomInfo->_roomNr;
+					Common::StringArray desc = _G(atds)->getTextArray(roomNum, txtNr, ATS_DATA);
+
+					if (desc.size() > 0) {
 						ret = txtNr;
 						_G(fontMgr)->setFont(_G(font8));
-						calcTxtXy(&x, &y, str_, anz);
-						for (int16 i = 0; i < anz; i++)
-							printShadowed(x, y + i * 10, 255, 300, 0, _G(scr_width), _G(txt)->strPos((char *)str_, i));
+						calcTxtXy(&x, &y, desc);
+						for (int16 i = 0; i < (int16)desc.size(); i++)
+							printShadowed(x, y + i * 10, 255, 300, 0, _G(scr_width), desc[i].c_str());
 					}
 				}
 			} else {
@@ -1919,7 +1879,7 @@ void set_person_rnr() {
 
 bool is_chewy_busy() {
 	bool ret = true;
-	if (_G(atds)->ats_get_status() == DISPLAY_NONE) {
+	if (!_G(atds)->atsShown()) {
 		if (_G(atds)->aadGetStatus() == -1) {
 			if (_G(atds)->ads_get_status() == -1) {
 				if (!_G(mov)->auto_go_status()) {

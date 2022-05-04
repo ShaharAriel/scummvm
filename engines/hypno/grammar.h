@@ -300,6 +300,11 @@ public:
 		escape = false;
 		active = true;
 	}
+
+	Talk(Talk *t)  {
+		*this = *t;
+	}
+
 	TalkCommands commands;
 	bool active;
 	bool escape;
@@ -332,6 +337,7 @@ enum LevelType {
 class Level {
 public:
 	Level() {
+		type = CodeLevel;
 		musicRate = 22050;
 	}
 	virtual ~Level() {} // needed to make Level polymorphic
@@ -366,6 +372,27 @@ public:
 	uint32 length;
 };
 
+enum ScriptMode {
+	Interactive = 1,
+	NonInteractive,
+};
+
+class ScriptInfo {
+public:
+	ScriptInfo(uint32 time_, uint32 mode_, uint32 actor_, uint32 cursor_) {
+		time = time_;
+		mode = ScriptMode(mode_);
+		actor = actor_;
+		cursor = cursor_;
+	}
+	uint32 time;
+	ScriptMode mode;
+	uint32 actor;
+	uint32 cursor;
+};
+
+typedef Common::List<ScriptInfo> Script;
+
 class Shoot {
 public:
 	Shoot() {
@@ -376,10 +403,12 @@ public:
 		attackWeight = 0;
 		paletteOffset = 0;
 		paletteSize = 0;
+		missedAnimation = 0;
 		objKillsCount = 0;
 		objMissesCount = 0;
 		animation = "NONE";
 		explosionAnimation = "";
+		startFrame = 0;
 		lastFrame = 1024;
 		noEnemySound = false;
 	}
@@ -402,6 +431,9 @@ public:
 	uint32 paletteOffset;
 	uint32 paletteSize;
 
+	// Mask
+	uint32 missedAnimation;
+
 	// Sounds
 	Filename enemySound;
 	Filename deathSound;
@@ -411,6 +443,7 @@ public:
 	Common::List<uint32> attackFrames;
 	Common::Array<FrameInfo> bodyFrames;
 	Common::Array<FrameInfo> explosionFrames;
+	uint32 startFrame;
 	uint32 lastFrame;
 	Filename explosionAnimation;
 	bool destroyed;
@@ -467,33 +500,91 @@ public:
 
 typedef Common::Array<Segment> Segments;
 
+class ArcadeTransition {
+public:
+	ArcadeTransition(Filename video_, Filename palette_, Filename sound_, uint32 time_)  {
+		video = video_;
+		palette = palette_;
+		sound = sound_;
+		time = time_;
+	}
+
+	Filename video;
+	Filename palette;
+	Filename sound;
+	uint32 time;
+};
+
+typedef Common::List<ArcadeTransition> ArcadeTransitions;
+
 class ArcadeShooting : public Level {
 public:
 	ArcadeShooting()  {
 		type = ArcadeLevel;
 		health = 100;
-		transitionTime = 0;
 		id = 0;
 		objKillsRequired[0] = 0;
 		objKillsRequired[1] = 0;
 		objMissesAllowed[0] = 0;
 		objMissesAllowed[1] = 0;
+		mouseBox = Common::Rect(0, 0, 320, 200);
 		frameDelay = 0;
+		targetSoundRate = 0; // TODO: unused
+		shootSoundRate = 0;
+		enemySoundRate = 0;
+		hitSoundRate = 0;
+		additionalSoundRate = 0;
 	}
+	void clear() {
+		nextLevelVideo.clear();
+		postStatsVideo.clear();
+		backgroundVideo.clear();
+		transitions.clear();
+		maskVideo.clear();
+		player.clear();
+		shoots.clear();
+		intros.clear();
+		defeatNoEnergyFirstVideo.clear();
+		defeatMissBossVideo.clear();
+		defeatNoEnergySecondVideo.clear();
+		missBoss1Video.clear();
+		missBoss2Video.clear();
+		hitBoss1Video.clear();
+		hitBoss2Video.clear();
+		beforeVideo.clear();
+		briefingVideo.clear();
+		additionalVideo.clear();
+		additionalSound.clear();
+		segments.clear();
+		script.clear();
+		objKillsRequired[0] = 0;
+		objKillsRequired[1] = 0;
+		objMissesAllowed[0] = 0;
+		objMissesAllowed[1] = 0;
+		mouseBox = Common::Rect(0, 0, 320, 200);
+		targetSoundRate = 0;
+		shootSoundRate = 0;
+		enemySoundRate = 0;
+		hitSoundRate = 0;
+	}
+
 	uint32 id;
 	uint32 frameDelay;
 	Common::String mode;
-	uint32 transitionTime;
+	Common::Rect mouseBox;
+	ArcadeTransitions transitions;
 	Segments segments;
 
 	// Objectives
 	uint32 objKillsRequired [2];
 	uint32 objMissesAllowed [2];
 
+	// Script
+	Script script;
+
 	// Videos
-	Filename transitionVideo;
-	Filename transitionPalette;
 	Filename nextLevelVideo;
+	Filename postStatsVideo;
 	Filename defeatNoEnergyFirstVideo;
 	Filename defeatNoEnergySecondVideo;
 	Filename defeatMissBossVideo;
@@ -507,6 +598,7 @@ public:
 
 	Filename backgroundVideo;
 	Filename backgroundPalette;
+	Filename maskVideo;
 	Filename player;
 	int health;
 	Shoots shoots;
@@ -521,6 +613,8 @@ public:
 	uint32 enemySoundRate;
 	Filename hitSound;
 	uint32 hitSoundRate;
+	Filename additionalSound;
+	uint32 additionalSoundRate;
 };
 
 class Transition : public Level {

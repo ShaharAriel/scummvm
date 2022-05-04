@@ -22,6 +22,8 @@
 #include "common/system.h"
 #include "chewy/resource.h"
 #include "chewy/text.h"
+#include "chewy/atds.h"
+#include "chewy/defines.h"
 
 namespace Chewy {
 
@@ -79,27 +81,75 @@ TextEntryList *Text::getDialog(uint chunk, uint entry) {
 	return l;
 }
 
-TextEntry *Text::getText(uint chunk, uint entry) {
+TextEntry *Text::getText(uint chunk, uint entry, int type, int subEntry) {
+	bool isText = false;
+	bool isAutoDialog = false;
+	bool isInvDesc = false;
+
+	switch (type) {
+	case AAD_DATA:
+		chunk += kADSTextMax + kATSTextMax;
+		isAutoDialog = true;
+		break;
+	case ATS_DATA:
+		chunk += kADSTextMax;
+		isText = true;
+		break;
+	case ADS_DATA:
+		// No change - chunk starts from 0
+		break;
+	case INV_USE_DATA:
+	case INV_USE_DEF:
+		chunk += kADSTextMax + kATSTextMax + kAADTextMax + kINVTextMax;
+		isInvDesc = true;
+		isText = true;
+		break;
+	case INV_ATS_DATA:
+		chunk += kADSTextMax + kATSTextMax + kAADTextMax;
+		isInvDesc = true;
+		break;
+	}
+
 	if (chunk < kADSTextMax)
-		error("getText(): Invalid entry number requested, %d (min %d)", chunk, kADSTextMax);
+		error("getText(): Invalid chunk number requested, %d (min %d)", chunk, kADSTextMax);
 
 	TextEntry *d = new TextEntry();
-	bool isText = (chunk >= kADSTextMax && chunk < kADSTextMax + kATSTextMax);
-	bool isAutoDialog = (chunk >= kADSTextMax + kATSTextMax && chunk < kADSTextMax + kATSTextMax + kAADTextMax);
 
 	byte *data = getChunkData(chunk);
 	byte *ptr = data;
+	uint entryId = 0;
+	uint16 headerBytes, txtNum;
+	int curSubEntry = -1;
+
+	//Common::hexdump(data, _chunkList[chunk].size);
 
 	if (isAutoDialog)
 		ptr += 3;
 
-	for (uint i = 0; i <= entry; i++) {
-		ptr += 13;
+	while (true) {
+		ptr += 3;
+		headerBytes = READ_LE_UINT16(ptr);
+		ptr += 2;
+
+		if (headerBytes == 0xFEF2) {
+			// Start of subchunk
+			curSubEntry = *ptr;
+			ptr++;
+			headerBytes = READ_LE_UINT16(ptr);
+			ptr += 2;
+		}
+
+		if (headerBytes != 0xFEF0)
+			break;
+
+		txtNum = !isInvDesc ? READ_LE_UINT16(ptr) : entryId++;
+		ptr += 2;
+		ptr += 6;
 		d->_speechId = READ_LE_UINT16(ptr) - VOICE_OFFSET;
 		ptr += 2;
 
 		do {
-			if (i == entry)
+			if (txtNum == entry && curSubEntry == subEntry)
 				d->_text += *ptr++;
 			else
 				ptr++;
@@ -108,6 +158,14 @@ TextEntry *Text::getText(uint chunk, uint entry) {
 				*ptr = '|';
 			}
 		} while (*ptr);
+
+		// FIXME: Skip other embedded strings for now
+		if (*(ptr + 1) == kEndText && *(ptr + 2) == 0xf1 && *(ptr + 3) == 0xfe) {
+			ptr += 5;
+			while (!(!*ptr && *(ptr + 1) == kEndText && *(ptr + 2) == kEndChunk)) {
+				ptr++;
+			}
+		}
 
 		if (*(ptr + 1) != kEndText || *(ptr + 2) != kEndChunk) {
 			warning("Invalid text resource - %d, %d", chunk, entry);
@@ -123,7 +181,7 @@ TextEntry *Text::getText(uint chunk, uint entry) {
 		if (isAutoDialog)
 			ptr += 3;
 
-		if (i == entry) {
+		if (txtNum == entry && curSubEntry == subEntry) {
 			// Found
 			delete[] data;
 			return d;
@@ -137,8 +195,8 @@ TextEntry *Text::getText(uint chunk, uint entry) {
 	return nullptr;
 }
 
-Common::StringArray Text::getTextArray(uint chunk, uint entry) {
-	TextEntry *textData = getText(chunk, entry);
+Common::StringArray Text::getTextArray(uint chunk, uint entry, int type, int subEntry) {
+	TextEntry *textData = getText(chunk, entry, type, subEntry);
 	Common::StringArray res;
 	Common::String txt = textData ? textData->_text : "";
 	char *text = new char[txt.size() + 1];
@@ -150,23 +208,17 @@ Common::StringArray Text::getTextArray(uint chunk, uint entry) {
 		line = strtok(nullptr, "|");
 	}
 
+	_lastSpeechId = textData ? textData->_speechId : -1;
+
 	delete[] text;
 	delete textData;
 
 	return res;
 }
 
-Common::String Text::getTextEntry(uint chunk, uint entry) {
-	Common::StringArray res = getTextArray(chunk, entry);
-	return res[0];
-}
-
-void Text::crypt(char *txt, uint32 size) {
-	uint8 *sp = (uint8 *)txt;
-	for (uint32 i = 0; i < size; i++) {
-		*sp = -(*sp);
-		++sp;
-	}
+Common::String Text::getTextEntry(uint chunk, uint entry, int type, int subEntry) {
+	Common::StringArray res = getTextArray(chunk, entry, type, subEntry);
+	return res.size() > 0 ? res[0] : "";
 }
 
 const char *Text::strPos(const char *txtAdr, int16 pos) {

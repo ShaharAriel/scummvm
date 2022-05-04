@@ -20,8 +20,10 @@
  */
 
 #include "chewy/dialogs/options.h"
+#include "chewy/cursor.h"
 #include "chewy/events.h"
 #include "chewy/globals.h"
+#include "chewy/mcga_graphics.h"
 #include "chewy/sound.h"
 
 namespace Chewy {
@@ -173,11 +175,9 @@ void Options::execute(TafInfo *ti) {
 			case 4:
 				if (g_engine->_sound->subtitlesEnabled()) {
 					g_engine->_sound->toggleSubtitles(false);
-					_G(atds)->setHasSpeech(true);
 					g_engine->_sound->toggleSpeech(true);
 				} else {
 					g_engine->_sound->toggleSubtitles(true);
-					_G(atds)->setHasSpeech(false);
 					g_engine->_sound->toggleSpeech(false);
 				}
 				break;

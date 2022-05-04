@@ -24,7 +24,9 @@
 #include "chewy/events.h"
 #include "chewy/globals.h"
 #include "chewy/main.h"
+#include "chewy/mcga_graphics.h"
 #include "chewy/menus.h"
+#include "chewy/mouse.h"
 #include "chewy/dialogs/inventory.h"
 
 namespace Chewy {
@@ -91,9 +93,9 @@ void plotMainMenu() {
 	}
 }
 
-void calcTxtXy(int16 *x, int16 *y, char *txtAdr, int16 txtNr) {
+void calcTxtXy(int16 *x, int16 *y, char *txtAdr, int16 txtCount) {
 	int16 len = 0;
-	for (int16 i = 0; i < txtNr; i++) {
+	for (int16 i = 0; i < txtCount; i++) {
 		int16 tmpLen = strlen(_G(txt)->strPos(txtAdr, i));
 		if (tmpLen > len)
 			len = tmpLen;
@@ -105,7 +107,25 @@ void calcTxtXy(int16 *x, int16 *y, char *txtAdr, int16 txtNr) {
 		*x = SCREEN_WIDTH - len;
 	else if (*x < 0)
 		*x = 0;
-	*y = *y - (10 * txtNr);
+	*y = *y - (10 * txtCount);
+	if (*y < 0)
+		*y = 0;
+}
+
+void calcTxtXy(int16 *x, int16 *y, Common::StringArray &textList) {
+	int16 len = 0;
+	for (int16 i = 0; i < (int16)textList.size(); i++) {
+		if ((int16)textList[i].size() > len)
+			len = textList[i].size();
+	}
+	len = len * _G(fontMgr)->getFont()->getDataWidth();
+	int16 pixLen = len / 2;
+	*x = *x - pixLen + 12;
+	if (*x > (SCREEN_WIDTH - len))
+		*x = SCREEN_WIDTH - len;
+	else if (*x < 0)
+		*x = 0;
+	*y = *y - (10 * textList.size());
 	if (*y < 0)
 		*y = 0;
 }

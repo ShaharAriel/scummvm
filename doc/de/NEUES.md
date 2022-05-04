@@ -70,8 +70,10 @@ Umfangreichere Informationen über die Änderungen des aktuellen Codes findest D
      zu ersetzen. Im ScummVM-Wiki findest Du eine Liste, welche Teile von Schwanensee im Spiel verwendet werden.
    - Einige Verbesserungen, die ScummVM zu Spielen hinzufügt, können jetzt
      in den Spiel-Einstellungen deaktiviert werden. Die Option zur Korrektur des Zeichen-
-     Abstands in den 16-Farben-Versionen für Macintosh von INdiana Jones and the Last Crusade
+     Abstands in den 16-Farben-Versionen für Macintosh von Indiana Jones and the Last Crusade
      findest du jetzt dort.
+   - Fehler bei der Wiedergabe von MIDI-Musik in der EGA/VGA-Diskettenversion von The Secret of Monkey Island behoben.
+   - Fehlerhafte Grafik-Darstellung in Full Throttle korrigiert, die auftritt, wenn Ben am Eingang von Corley Motors vorbeiläuft.
 
  Sherlock:
    - Fehler in der Wiedergabegeschwindigkeit im Intro von Serrated Scalpel behoben, der auftritt,

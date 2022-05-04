@@ -26,13 +26,14 @@
 #include "ags/lib/std/vector.h"
 #include "ags/shared/ac/character_info.h"
 #include "ags/engine/ac/runtime_defines.h"
+#include "ags/engine/ac/speech.h"
+#include "ags/engine/ac/timer.h"
 #include "ags/shared/game/room_struct.h"
 #include "ags/engine/game/viewport.h"
 #include "ags/engine/media/audio/queued_audio_item.h"
 #include "ags/shared/util/geometry.h"
 #include "ags/shared/util/string_types.h"
 #include "ags/shared/util/string.h"
-#include "ags/engine/ac/timer.h"
 
 namespace AGS3 {
 
@@ -169,7 +170,8 @@ struct GameState {
 	char  walkable_areas_on[MAX_WALK_AREAS + 1];
 	short screen_flipped = 0;
 	int   entered_at_x = 0, entered_at_y = 0, entered_edge = 0;
-	int   want_speech = 0;
+	bool  voice_avail; // whether voice-over is available
+	SpeechMode speech_mode; // speech mode (text, voice, or both)
 	int   cant_skip_speech = 0;
 	int32_t   script_timers[MAX_TIMERS];
 	int   sound_volume = 0, speech_volume = 0;
@@ -177,7 +179,7 @@ struct GameState {
 	int8  key_skip_wait = 0;
 	int   swap_portrait_lastchar = 0;
 	int   swap_portrait_lastlastchar = 0;
-	int   separate_music_lib = 0;
+	bool  separate_music_lib = false;
 	int   in_conversation = 0;
 	int   screen_tint = 0;
 	int   num_parsed_words = 0;
@@ -224,7 +226,7 @@ struct GameState {
 	int   gamma_adjustment = 0;
 	short temporarily_turned_off_character = 0;  // Hide Player Charactr ticked
 	short inv_backwards_compatibility = 0;
-	int32_t *gui_draw_order = 0;
+	std::vector<int> gui_draw_order; // used only for hit detection now
 	std::vector<AGS::Shared::String> do_once_tokens = 0;
 	int   text_min_display_time_ms = 0;
 	int   ignore_user_input_after_text_timeout_ms = 0;

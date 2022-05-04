@@ -76,11 +76,14 @@ public:
 			return *this;
 		}
 
-		bool operator==(const const_reverse_iterator &rhs) {
+		bool operator==(const const_reverse_iterator &rhs) const {
 			return _owner == rhs._owner && _index == rhs._index;
 		}
-		bool operator!=(const const_reverse_iterator &rhs) {
+		bool operator!=(const const_reverse_iterator &rhs) const {
 			return !operator==(rhs);
+		}
+		bool operator<(const const_reverse_iterator &rhs) const {
+			return _index > rhs._index;
 		}
 	};
 
@@ -155,6 +158,12 @@ public:
 	const_reverse_iterator rend() const {
 		return const_reverse_iterator(this, -1);
 	}
+	const_reverse_iterator crbegin() const {
+		return const_reverse_iterator(this, (int)Common::Array<T>::size() - 1);
+	}
+	const_reverse_iterator crend() const {
+		return const_reverse_iterator(this, -1);
+	}
 
 	void pop_front() {
 		Common::Array<T>::remove_at(0);
@@ -195,6 +204,18 @@ public:
 		int destIndex = position - this->begin();
 		for (; first != last; ++first) {
 			this->insert_at(destIndex++, *first);
+		}
+	}
+
+	/**
+	 * Remove an element
+	 */
+	void remove(T element) {
+		for (uint i = 0; i < this->size(); ++i) {
+			if (this->operator[](i) == element) {
+				this->remove_at(i);
+				return;
+			}
 		}
 	}
 };

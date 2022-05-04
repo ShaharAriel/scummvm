@@ -52,6 +52,7 @@
 #include "ags/engine/ac/system.h"
 #include "ags/engine/debugging/debugger.h"
 #include "ags/engine/debugging/debug_log.h"
+#include "ags/shared/font/fonts.h"
 #include "ags/engine/gui/gui_dialog.h"
 #include "ags/engine/main/engine.h"
 #include "ags/engine/main/game_run.h"
@@ -185,8 +186,8 @@ void FillSaveList(std::vector<SaveListItem> &saves, size_t max_count) {
 	for (uint idx = 0; idx < saveList.size(); ++idx) {
 		int saveGameSlot = saveList[idx].getSaveSlot();
 
-		// only list games .000 to .099 (to allow higher slots for other perposes)
-		if (saveGameSlot > 99)
+		// only list games .000 to .xxx (to allow higher slots for other perposes)
+		if (saveGameSlot < 0 || saveGameSlot > TOP_LISTEDSAVESLOT)
 			continue;
 
 		String description;
@@ -199,7 +200,7 @@ void FillSaveList(std::vector<SaveListItem> &saves, size_t max_count) {
 
 void SetGlobalInt(int index, int valu) {
 	if ((index < 0) | (index >= MAXGSVALUES))
-		quit("!SetGlobalInt: invalid index");
+		quitprintf("!SetGlobalInt: invalid index %d, supported range is %d - %d", index, 0, MAXGSVALUES - 1);
 
 	if (_GP(play).globalscriptvars[index] != valu) {
 		debug_script_log("GlobalInt %d set to %d", index, valu);
@@ -211,23 +212,21 @@ void SetGlobalInt(int index, int valu) {
 
 int GetGlobalInt(int index) {
 	if ((index < 0) | (index >= MAXGSVALUES))
-		quit("!GetGlobalInt: invalid index");
+		quitprintf("!GetGlobalInt: invalid index %d, supported range is %d - %d", index, 0, MAXGSVALUES - 1);
 	return _GP(play).globalscriptvars[index];
 }
 
 void SetGlobalString(int index, const char *newval) {
 	if ((index < 0) | (index >= MAXGLOBALSTRINGS))
-		quit("!SetGlobalString: invalid index");
+		quitprintf("!SetGlobalString: invalid index %d, supported range is %d - %d", index, 0, MAXGLOBALSTRINGS - 1);
 	debug_script_log("GlobalString %d set to '%s'", index, newval);
-	strncpy(_GP(play).globalstrings[index], newval, MAX_MAXSTRLEN);
-	// truncate it to 200 chars, to be sure
-	_GP(play).globalstrings[index][MAX_MAXSTRLEN - 1] = 0;
+	snprintf(_GP(play).globalstrings[index], MAX_MAXSTRLEN, "%s", newval);
 }
 
 void GetGlobalString(int index, char *strval) {
 	if ((index < 0) | (index >= MAXGLOBALSTRINGS))
-		quit("!GetGlobalString: invalid index");
-	strcpy(strval, _GP(play).globalstrings[index]);
+		quitprintf("!GetGlobalString: invalid index %d, supported range is %d - %d", index, 0, MAXGLOBALSTRINGS - 1);
+	snprintf(strval, MAX_MAXSTRLEN, "%s", _GP(play).globalstrings[index]);
 }
 
 // TODO: refactor this method, and use same shared procedure at both normal stop/startup and in RunAGSGame
@@ -419,7 +418,7 @@ int SetGameOption(int opt, int setting) {
 	if (opt == OPT_DUPLICATEINV)
 		update_invorder();
 	else if (opt == OPT_DISABLEOFF) {
-		_G(gui_disabled_style) = convert_gui_disabled_style(_GP(game).options[OPT_DISABLEOFF]);
+		GUI::Options.DisabledStyle = static_cast<GuiDisableStyle>(_GP(game).options[OPT_DISABLEOFF]);
 		// If GUI was disabled at this time then also update it, as visual style could've changed
 		if (_GP(play).disabled_user_interface > 0) {
 			GUI::MarkAllGUIForUpdate();
@@ -427,6 +426,8 @@ int SetGameOption(int opt, int setting) {
 	} else if (opt == OPT_PORTRAITSIDE) {
 		if (setting == 0)  // set back to Left
 			_GP(play).swap_portrait_side = 0;
+	} else if (opt == OPT_ANTIALIASFONTS) {
+		adjust_fonts_for_render_mode(setting != 0);
 	}
 
 	return oldval;
@@ -586,7 +587,7 @@ void GetLocationName(int xxx, int yyy, char *tempo) {
 	// on object
 	if (loctype == LOCTYPE_OBJ) {
 		aa = _G(getloctype_index);
-		strcpy(tempo, get_translation(_GP(thisroom).Objects[aa].Name.GetCStr()));
+		strcpy(tempo, get_translation(_G(croom)->obj[aa].name.GetCStr()));
 		// Compatibility: < 3.1.1 games returned space for nameless object
 		// (presumably was a bug, but fixing it affected certain games behavior)
 		if (_G(loaded_game_file_version) < kGameVersion_311 && tempo[0] == 0) {
@@ -599,7 +600,7 @@ void GetLocationName(int xxx, int yyy, char *tempo) {
 		return;
 	}
 	onhs = _G(getloctype_index);
-	if (onhs > 0) strcpy(tempo, get_translation(_GP(thisroom).Hotspots[onhs].Name.GetCStr()));
+	if (onhs > 0) strcpy(tempo, get_translation(_G(croom)->hotspot[onhs].Name.GetCStr()));
 	if (_GP(play).get_loc_name_last_time != onhs)
 		GUI::MarkSpecialLabelsForUpdate(kLabelMacro_Overhotspot);
 	_GP(play).get_loc_name_last_time = onhs;
@@ -770,6 +771,10 @@ void SetGraphicalVariable(const char *varName, int p_value) {
 }
 
 int WaitImpl(int skip_type, int nloops) {
+	// if skipping cutscene and expecting user input: don't wait at all
+	if (_GP(play).fast_forward && ((skip_type & ~SKIP_AUTOTIMER) != 0))
+		return 0;
+
 	_GP(play).wait_counter = nloops;
 	_GP(play).wait_skipped_by = SKIP_NONE;
 	_GP(play).wait_skipped_by = SKIP_AUTOTIMER; // we set timer flag by default to simplify that case
@@ -804,6 +809,10 @@ int WaitMouseKey(int nloops) {
 
 void SkipWait() {
 	_GP(play).wait_counter = 0;
+}
+
+void scStartRecording(int /*keyToStop*/) {
+	debug_script_warn("StartRecording: not supported");
 }
 
 } // namespace AGS3

@@ -208,7 +208,6 @@ public:
 
 	MouseInfo _minfo;
 	CurBlk _curblk;
-	CurAni _curani;
 	RaumBlk _room_blk;
 	Flags _flags = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 					0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -358,8 +357,6 @@ void show_intro();
 void register_cutscene(int cutsceneNum);
 void getCutscenes(Common::Array<int> &cutscenes);
 
-void init_atds();
-
 void init_room();
 
 void buildMenu(int16 x, int16 y, int16 xNr, int16 yNr, int16 col, int16 mode);
@@ -381,6 +378,7 @@ void remove_inventory(int16 nr);
 
 void getDisplayCoord(int16 *x, int16 *y, int16 nr);
 void calcTxtXy(int16 *x, int16 *y, char *txtAdr, int16 txtNr);
+void calcTxtXy(int16 *x, int16 *y, Common::StringArray &desc);
 void adsMenu();
 
 void stop_ads_dialog();

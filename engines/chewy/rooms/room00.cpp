@@ -19,6 +19,7 @@
  *
  */
 
+#include "chewy/cursor.h"
 #include "chewy/defines.h"
 #include "chewy/events.h"
 #include "chewy/globals.h"
@@ -130,7 +131,7 @@ bool Room0::getPillow() {
 		invent_2_slot(0);
 		_G(menu_item) = CUR_WALK;
 		cursorChoice(CUR_WALK);
-		_G(atds)->setControlBit(174, ATS_ACTIVE_BIT, ATS_DATA);
+		_G(atds)->setControlBit(174, ATS_ACTIVE_BIT);
 		_G(det)->hideStaticSpr(6);
 
 		_G(flags).AutoAniPlay = false;
@@ -156,7 +157,7 @@ bool Room0::pullSlime() {
 		invent_2_slot(1);
 		_G(menu_item) = CUR_WALK;
 		cursorChoice(CUR_WALK);
-		_G(atds)->setControlBit(175, ATS_ACTIVE_BIT, ATS_DATA);
+		_G(atds)->setControlBit(175, ATS_ACTIVE_BIT);
 
 		_G(flags).AutoAniPlay = false;
 		showCur();
@@ -300,15 +301,15 @@ void Room0::eyeWait() {
 void Room0::calcEyeClick(int16 aniNr) {
 	if (mouse_on_prog_ani() == aniNr) {
 		if (_G(minfo)._button != 1 && g_events->_kbInfo._keyCode != Common::KEYCODE_RETURN) {
-			int16 anz;
-			char *str_ = _G(atds)->ats_get_txt(172, TXT_MARK_NAME, &anz, ATS_DATA);
-			if (str_ != 0) {
+			const uint8 roomNum = _G(room)->_roomInfo->_roomNr;
+			Common::StringArray desc = _G(atds)->getTextArray(roomNum, 172, ATS_DATA);
+			if (desc.size() > 0) {
 				_G(fontMgr)->setFont(_G(font8));
 				int16 x = g_events->_mousePos.x;
 				int16 y = g_events->_mousePos.y;
-				calcTxtXy(&x, &y, str_, anz);
-				for (int16 i = 0; i < anz; i++)
-					printShadowed(x, y + i * 10, 255, 300, 0, _G(scr_width), _G(txt)->strPos((char *)str_, i));
+				calcTxtXy(&x, &y, desc);
+				for (int16 i = 0; i < (int16)desc.size(); i++)
+					printShadowed(x, y + i * 10, 255, 300, 0, _G(scr_width), desc[i].c_str());
 			}
 		} else if (_G(minfo)._button == 1 || g_events->_kbInfo._keyCode == Common::KEYCODE_RETURN) {
 			if (isCurInventory(SLIME_INV)) {
@@ -538,15 +539,15 @@ void Room0::feederExtend() {
 void Room0::calcPillowClick(int16 aniNr) {
 	if (mouse_on_prog_ani() == aniNr) {
 		if (_G(minfo)._button != 1 && g_events->_kbInfo._keyCode != Common::KEYCODE_RETURN) {
-			int16 anz;
-			char *str_ = _G(atds)->ats_get_txt(173, TXT_MARK_NAME, &anz, ATS_DATA);
-			if (str_ != nullptr) {
+			const uint8 roomNum = _G(room)->_roomInfo->_roomNr;
+			Common::StringArray desc = _G(atds)->getTextArray(roomNum, 173, ATS_DATA);
+			if (desc.size() > 0) {
 				_G(fontMgr)->setFont(_G(font8));
 				int16 x = g_events->_mousePos.x;
 				int16 y = g_events->_mousePos.y;
-				calcTxtXy(&x, &y, str_, anz);
-				for (int16 i = 0; i < anz; i++)
-					printShadowed(x, y + i * 10, 255, 300, 0, _G(scr_width), _G(txt)->strPos((char *)str_, i));
+				calcTxtXy(&x, &y, desc);
+				for (int16 i = 0; i < (int16)desc.size(); i++)
+					printShadowed(x, y + i * 10, 255, 300, 0, _G(scr_width), desc[i].c_str());
 			}
 		} else if (_G(minfo)._button == 1 || g_events->_kbInfo._keyCode == Common::KEYCODE_RETURN) {
 			if (isCurInventory(PILLOW_INV) && _G(gameState).R0SlimeUsed) {
