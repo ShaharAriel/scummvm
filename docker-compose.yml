@@ -1,0 +1,10 @@
+version: '3.9'
+services:
+
+  scumm-vm:
+    container_name: scumm-vm
+    image: toolchains/mxe:latest
+    command: ./configure --host=i686-w64-mingw32.static --enable-debug --enable-updates &  make win32dist-mingw DESTDIR=win32dist-mingw
+    volumes:
+      - ./:/usr/src
+    restart: always
