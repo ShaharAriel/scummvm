@@ -697,13 +697,13 @@ namespace Scumm
                 {
                     _fontPtr = russianCharsetDataV2;
                 }
-                break;
-            case Common::HE_ISR:
-                if (((_vm->_game.id == GID_MANIAC) || (_vm->_game.id == GID_ZAK)) && (_vm->_game.version == 2)){
-                    replacementMap = hebrewCharsetMapV2;
-                    replacementChars = sizeof(hebrewCharsetMapV2) / 2;
-                    replacementData = hebrewCharsetDataV2;
-                }
+		break;
+	case Common::HE_ISR:
+		if ((_vm->_game.id == GID_MANIAC || _vm->_game.id == GID_ZAK) && _vm->_game.version == 2) {
+			replacementMap = hebrewCharsetMapV2;
+			replacementChars = sizeof(hebrewCharsetMapV2) / 2;
+			replacementData = hebrewCharsetDataV2;
+		}
                 break;
             default:
                 _fontPtr = englishCharsetDataV2;
