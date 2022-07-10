@@ -23,7 +23,7 @@
 #include "ags/engine/game/savegame_components.h"
 #include "ags/shared/ac/audio_clip_type.h"
 #include "ags/shared/ac/common.h"
-#include "ags/shared/ac/dialog_topic.h"
+#include "ags/engine/ac/dialog.h"
 #include "ags/engine/ac/button.h"
 #include "ags/engine/ac/character.h"
 #include "ags/engine/ac/draw.h"
@@ -67,8 +67,6 @@ namespace AGS {
 namespace Engine {
 
 namespace SavegameComponents {
-
-const String ComponentListTag = "Components";
 
 void WriteFormatTag(Stream *out, const String &tag, bool open = true) {
 	String full_tag = String::FromFormat(open ? "<%s>" : "</%s>", tag.GetCStr());
@@ -919,8 +917,9 @@ HSaveError WriteThisRoom(Stream *out) {
 	}
 
 	// room object movement paths cache
-	out->WriteInt32(_GP(thisroom).ObjectCount + 1);
-	for (size_t i = 0; i < _GP(thisroom).ObjectCount + 1; ++i) {
+	// CHECKME: not sure why it saves (object count + 1) move lists
+	out->WriteInt32(_GP(thisroom).Objects.size() + 1);
+	for (size_t i = 0; i < _GP(thisroom).Objects.size() + 1; ++i) {
 		_GP(mls)[i].WriteToFile(out);
 	}
 
@@ -968,7 +967,7 @@ HSaveError ReadThisRoom(Stream *in, int32_t cmp_ver, const PreservedParams & /*p
 	if (!AssertCompatLimit(err, objmls_count, CHMLSOFFS, "room object move lists"))
 		return err;
 	for (int i = 0; i < objmls_count; ++i) {
-		err = _GP(mls)[i].ReadFromFile(in, cmp_ver > 0 ? 1 : 0); // FIXME!!
+		err = _GP(mls)[i].ReadFromFile(in, cmp_ver > 0 ? 1 : 0); // FIXME cmp_ver, ugly
 		if (!err)
 			return err;
 	}
@@ -1023,128 +1022,141 @@ struct ComponentHandler {
 };
 
 // Array of supported components
-ComponentHandler ComponentHandlers[] = {
-	{
-		"Game State",
-		kGSSvgVersion_350_10,
-		kGSSvgVersion_Initial,
-		WriteGameState,
-		ReadGameState
-	},
-	{
-		"Audio",
-		2,
-		0,
-		WriteAudio,
-		ReadAudio
-	},
-	{
-		"Characters",
-		2,
-		0,
-		WriteCharacters,
-		ReadCharacters
-	},
-	{
-		"Dialogs",
-		0,
-		0,
-		WriteDialogs,
-		ReadDialogs
-	},
-	{
-		"GUI",
-		kGuiSvgVersion_36025,
-		kGuiSvgVersion_Initial,
-		WriteGUI,
-		ReadGUI
-	},
-	{
-		"Inventory Items",
-		0,
-		0,
-		WriteInventory,
-		ReadInventory
-	},
-	{
-		"Mouse Cursors",
-		1,
-		0,
-		WriteMouseCursors,
-		ReadMouseCursors
-	},
-	{
-		"Views",
-		0,
-		0,
-		WriteViews,
-		ReadViews
-	},
-	{
-		"Dynamic Sprites",
-		0,
-		0,
-		WriteDynamicSprites,
-		ReadDynamicSprites
-	},
-	{
-		"Overlays",
-		3,
-		0,
-		WriteOverlays,
-		ReadOverlays
-	},
-	{
-		"Dynamic Surfaces",
-		0,
-		0,
-		WriteDynamicSurfaces,
-		ReadDynamicSurfaces
-	},
-	{
-		"Script Modules",
-		0,
-		0,
-		WriteScriptModules,
-		ReadScriptModules
-	},
-	{
-		"Room States",
-		3,
-		0,
-		WriteRoomStates,
-		ReadRoomStates
-	},
-	{
-		"Loaded Room State",
-		3, // must correspond to "Room States"
-		0,
-		WriteThisRoom,
-		ReadThisRoom
-	},
-	{
-		"Managed Pool",
-		0,
-		0,
-		WriteManagedPool,
-		ReadManagedPool
-	},
-	{
-		"Plugin Data",
-		0,
-		0,
-		WritePluginData,
-		ReadPluginData
-	},
-	{ nullptr, 0, 0, nullptr, nullptr } // end of array
+struct ComponentHandlers {
+	const ComponentHandler _items[17] = {
+		{
+			"Game State",
+			kGSSvgVersion_350_10,
+			kGSSvgVersion_Initial,
+			WriteGameState,
+			ReadGameState
+		},
+		{
+			"Audio",
+			2,
+			0,
+			WriteAudio,
+			ReadAudio
+		},
+		{
+			"Characters",
+			2,
+			0,
+			WriteCharacters,
+			ReadCharacters
+		},
+		{
+			"Dialogs",
+			0,
+			0,
+			WriteDialogs,
+			ReadDialogs
+		},
+		{
+			"GUI",
+			kGuiSvgVersion_36025,
+			kGuiSvgVersion_Initial,
+			WriteGUI,
+			ReadGUI
+		},
+		{
+			"Inventory Items",
+			0,
+			0,
+			WriteInventory,
+			ReadInventory
+		},
+		{
+			"Mouse Cursors",
+			1,
+			0,
+			WriteMouseCursors,
+			ReadMouseCursors
+		},
+		{
+			"Views",
+			0,
+			0,
+			WriteViews,
+			ReadViews
+		},
+		{
+			"Dynamic Sprites",
+			0,
+			0,
+			WriteDynamicSprites,
+			ReadDynamicSprites
+		},
+		{
+			"Overlays",
+			3,
+			0,
+			WriteOverlays,
+			ReadOverlays
+		},
+		{
+			"Dynamic Surfaces",
+			0,
+			0,
+			WriteDynamicSurfaces,
+			ReadDynamicSurfaces
+		},
+		{
+			"Script Modules",
+			0,
+			0,
+			WriteScriptModules,
+			ReadScriptModules
+		},
+		{
+			"Room States",
+			3,
+			0,
+			WriteRoomStates,
+			ReadRoomStates
+		},
+		{
+			"Loaded Room State",
+			3, // must correspond to "Room States"
+			0,
+			WriteThisRoom,
+			ReadThisRoom
+		},
+		{
+			"Managed Pool",
+			0,
+			0,
+			WriteManagedPool,
+			ReadManagedPool
+		},
+		{
+			"Plugin Data",
+			0,
+			0,
+			WritePluginData,
+			ReadPluginData
+		},
+		{ nullptr, 0, 0, nullptr, nullptr } // end of array
+	};
+	const ComponentHandler &operator[](uint idx) {
+		return _items[idx];
+	}
 };
+ComponentHandlers *g_componentHandlers;
 
+void component_handlers_init() {
+	g_componentHandlers = new ComponentHandlers();
+}
+
+void component_handlers_free() {
+	delete g_componentHandlers;
+}
 
 typedef std::map<String, ComponentHandler> HandlersMap;
 void GenerateHandlersMap(HandlersMap &map) {
 	map.clear();
-	for (int i = 0; !ComponentHandlers[i].Name.IsEmpty(); ++i)
-		map[ComponentHandlers[i].Name] = ComponentHandlers[i];
+	for (int i = 0; !(*g_componentHandlers)[i].Name.IsEmpty(); ++i)
+		map[(*g_componentHandlers)[i].Name] = (*g_componentHandlers)[i];
 }
 
 // A helper struct to pass to (de)serialization handlers
@@ -1221,6 +1233,7 @@ HSaveError ReadAll(Stream *in, SavegameVersion svg_version, const PreservedParam
 	GenerateHandlersMap(hlp.Handlers);
 
 	size_t idx = 0;
+	const String ComponentListTag = "Components";
 	if (!AssertFormatTag(in, ComponentListTag, true))
 		return new SavegameError(kSvgErr_ComponentListOpeningTagFormat);
 	do {
@@ -1246,7 +1259,7 @@ HSaveError ReadAll(Stream *in, SavegameVersion svg_version, const PreservedParam
 	return new SavegameError(kSvgErr_ComponentListClosingTagMissing);
 }
 
-HSaveError WriteComponent(Stream *out, ComponentHandler &hdlr) {
+HSaveError WriteComponent(Stream *out, const ComponentHandler &hdlr) {
 	WriteFormatTag(out, hdlr.Name, true);
 	out->WriteInt32(hdlr.Version);
 	soff_t ref_pos = out->GetPosition();
@@ -1262,12 +1275,13 @@ HSaveError WriteComponent(Stream *out, ComponentHandler &hdlr) {
 }
 
 HSaveError WriteAllCommon(Stream *out) {
+	const String ComponentListTag = "Components";
 	WriteFormatTag(out, ComponentListTag, true);
-	for (int type = 0; !ComponentHandlers[type].Name.IsEmpty(); ++type) {
-		HSaveError err = WriteComponent(out, ComponentHandlers[type]);
+	for (int type = 0; !(*g_componentHandlers)[type].Name.IsEmpty(); ++type) {
+		HSaveError err = WriteComponent(out, (*g_componentHandlers)[type]);
 		if (!err) {
 			return new SavegameError(kSvgErr_ComponentSerialization,
-			                         String::FromFormat("Component: (#%d) %s", type, ComponentHandlers[type].Name.GetCStr()),
+			                         String::FromFormat("Component: (#%d) %s", type, (*g_componentHandlers)[type].Name.GetCStr()),
 			                         err);
 		}
 		update_polled_stuff_if_runtime();

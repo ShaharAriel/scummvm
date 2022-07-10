@@ -199,7 +199,16 @@ void ScummEngine::parseEvent(Common::Event event) {
 		if (_renderMode == Common::kRenderHercA || _renderMode == Common::kRenderHercG) {
 			_mouse.x -= (kHercWidth - _screenWidth * 2) / 2;
 			_mouse.x >>= 1;
-			_mouse.y = _mouse.y * 4 / 7;
+			if (_game.version == 1) {
+				if (_mouse.y >= _virtscr[kMainVirtScreen].topline)
+					_mouse.y = _mouse.y / 2 + _virtscr[kMainVirtScreen].topline / 2;
+				if (_mouse.y > _virtscr[kVerbVirtScreen].topline)
+					_mouse.y += (_mouse.y - _virtscr[kVerbVirtScreen].topline);
+					
+			} else {
+				_mouse.y = _mouse.y * 4 / 7;
+			}
+			
 		} else if (_macScreen || (_useCJKMode && _textSurfaceMultiplier == 2)) {
 			_mouse.x >>= 1;
 			_mouse.y >>= 1;
@@ -545,7 +554,7 @@ void ScummEngine::processKeyboard(Common::KeyState lastKeyHit) {
 	bool talkstopKeyEnabled = (VAR_TALKSTOP_KEY == 0xFF || VAR(VAR_TALKSTOP_KEY) != 0);
 	bool cutsceneExitKeyEnabled = (VAR_CUTSCENEEXIT_KEY == 0xFF || VAR(VAR_CUTSCENEEXIT_KEY) != 0);
 	bool mainmenuKeyEnabled = (VAR_MAINMENU_KEY == 0xFF || VAR(VAR_MAINMENU_KEY) != 0);
-	bool snapScrollKeyEnabled = (_game.version <= 2 || VAR_CAMERA_FAST_X != 0xFF);
+	bool snapScrollKeyEnabled = (_game.version >= 2 && _game.version <= 4);
 
 	// In FM-TOWNS games F8 / restart is always enabled
 	if (_game.platform == Common::kPlatformFMTowns)
@@ -562,6 +571,9 @@ void ScummEngine::processKeyboard(Common::KeyState lastKeyHit) {
 			runScript(VAR(VAR_SAVELOAD_SCRIPT), 0, 0, nullptr);
 
 		openMainMenuDialog();		// Display global main menu
+
+		// reload options
+		_enableAudioOverride = ConfMan.getBool("audio_override");
 
 		if (VAR_SAVELOAD_SCRIPT2 != 0xFF && _currentRoom != 0)
 			runScript(VAR(VAR_SAVELOAD_SCRIPT2), 0, 0, nullptr);
@@ -686,6 +698,15 @@ void ScummEngine::processKeyboard(Common::KeyState lastKeyHit) {
 		} else {
 			_mouseAndKeyboardStat = lastKeyHit.ascii;
 		}
+	}
+
+	// The original interpreters allowed the usage of the Enter key as a substitute for left mouse click,
+	// and the Tab key as a substitute for right click; while v7-8 games handle this substitution via
+	// scripts, we have to do this manually for the other games.
+	if (_mouseAndKeyboardStat == Common::KEYCODE_RETURN && _cursor.state > 0 && _game.version <= 6) {
+		_mouseAndKeyboardStat = MBS_LEFT_CLICK;
+	} else if (_mouseAndKeyboardStat == Common::KEYCODE_TAB && _cursor.state > 0 && _game.version >= 4 && _game.version <= 6) {
+		_mouseAndKeyboardStat = MBS_RIGHT_CLICK;
 	}
 }
 

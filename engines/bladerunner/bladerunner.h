@@ -42,6 +42,7 @@
 #define BLADERUNNER_ORIGINAL_BUGS     0
 
 namespace Common {
+class Archive;
 struct Event;
 }
 
@@ -134,6 +135,8 @@ public:
 	bool _gameIsRunning;
 	bool _windowIsActive;
 	int  _playerLosesControlCounter;
+	int  _extraCPos;
+	uint8 _extraCNotify;
 
 	Common::String   _languageCode;
 	Common::Language _language;
@@ -228,12 +231,14 @@ public:
 	bool _vqaIsPlaying;
 	bool _vqaStopIsRequested;
 	bool _subtitlesEnabled;  // tracks the state of whether subtitles are enabled or disabled from ScummVM GUI option or KIA checkbox (the states are synched)
+	bool _showSubtitlesForTextCrawl;
 	bool _sitcomMode;
 	bool _shortyMode;
 	bool _noDelayMillisFramelimiter;
 	bool _framesPerSecondMax;
 	bool _disableStaminaDrain;
 	bool _cutContent;
+	bool _enhancedEdition;
 	bool _validBootParam;
 
 	int _walkSoundId;
@@ -332,6 +337,7 @@ public:
 
 private:
 	MIXArchive _archives[kArchiveCount];
+	Common::Archive *_archive;
 
 public:
 	BladeRunnerEngine(OSystem *syst, const ADGameDescription *desc);
@@ -409,6 +415,8 @@ public:
 	bool closeArchive(const Common::String &name);
 	bool isArchiveOpen(const Common::String &name) const;
 
+	bool openArchiveEnhancedEdition();
+
 	void syncSoundSettings() override;
 	bool isSubtitlesEnabled();
 	void setSubtitlesEnabled(bool newVal);
@@ -431,6 +439,9 @@ public:
 	Graphics::Surface generateThumbnail() const;
 
 	Common::String getTargetName() const;
+
+	uint8 getExtraCNotify();
+	void  setExtraCNotify(uint8 val);
 };
 
 static inline const Graphics::PixelFormat gameDataPixelFormat() {

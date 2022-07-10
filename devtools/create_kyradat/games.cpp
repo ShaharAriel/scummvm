@@ -43,6 +43,7 @@ const Game kyra1Games[] = {
 	{ kKyra1, kPlatformDOS, kNoSpecial, IT_ITA },
 	{ kKyra1, kPlatformDOS, kNoSpecial, ES_ESP },
 	{ kKyra1, kPlatformDOS, kOldFloppy, RU_RUS },
+	{ kKyra1, kPlatformDOS, kNoSpecial, KO_KOR },
 	{ kKyra1, kPlatformDOS, kNoSpecial, ZH_TWN },
 
 	{ kKyra1, kPlatformDOS, kTalkieVersion, EN_ANY },
@@ -102,6 +103,7 @@ const Game kyra3Games[] = {
 	{ kKyra3, kPlatformDOS, kTalkieVersion, IT_ITA },
 	{ kKyra3, kPlatformDOS, kTalkieVersion, ES_ESP },
 	{ kKyra3, kPlatformDOS, kTalkieVersion, RU_RUS },
+	{ kKyra3, kPlatformDOS, kTalkieVersion, HE_ISR },
 	{ kKyra3, kPlatformDOS, kTalkieVersion, ZH_CHN },
 	{ kKyra3, kPlatformDOS, kTalkieVersion, ZH_TWN },
 

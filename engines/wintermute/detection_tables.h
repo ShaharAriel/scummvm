@@ -133,6 +133,7 @@ static const PlainGameDescriptor wintermuteGames[] = {
 	{"satanandsons",    "Satan and Sons"},
 	{"securanote",      "Securanote"},
 	{"shaban",          "Shaban"},
+	{"shadowofnebula",  "Shadow Of Nebula"},
 	{"shinestar",       "The Shine of a Star"},
 	{"spaceinvaders",   "Space Invaders"},
 	{"spacemadness",    "Space Madness"},
@@ -461,7 +462,7 @@ static const WMEGameDescription gameDescriptions[] = {
 	WME_WINENTRY("bickadoodle", "Version 1.2",
 		WME_ENTRY1s("data.dcp", "1796a48f3ed72dd785ce93334ab883cc", 35337760), Common::EN_ANY, ADGF_UNSTABLE, WME_1_9_1),
 
-	// Bickadoodle (download from http://aethericgames.com/games/bickadoodle/download-bickadoodle/)
+	// Bickadoodle (https://web.archive.org/web/20150516210632/http://aethericgames.com/games/bickadoodle/download-bickadoodle/)
 	WME_WINENTRY("bickadoodle", "",
 		WME_ENTRY1s("data.dcp", "1584d83577c32add0fce27fae91141a2", 35337728), Common::EN_ANY, ADGF_UNSTABLE, WME_1_9_1),
 
@@ -4159,6 +4160,14 @@ static const WMEGameDescription gameDescriptions[] = {
 	WME_WINENTRY("sof2", "",
 		WME_ENTRY2s("data.dcp", "9f4de2a53ef396cc70786a1dc0ab191d", 828351641,
 					"local.dcp", "a78f5353c6539b4ff9c39223202ba8d0", 433003083), Common::EN_ANY, ADGF_UNSTABLE | GF_3D, WME_1_8_9),
+
+	// Shadow of Nebula (Steam: Early Access Game, Mar 2016) (English)
+	WME_WINENTRY("shadowofnebula", "",
+		WME_ENTRY1s("data.dcp", "fd3631791e66885427ccdb6063752a6d", 1402609157), Common::EN_ANY, ADGF_UNSTABLE, WME_1_9_3),
+
+	// Shadow of Nebula (Demo) (English)
+	WME_WINENTRY("shadowofnebula", "",
+		WME_ENTRY1s("data.dcp", "f16f8a354bd90cb233dafc6b1a318f26", 913267667), Common::EN_ANY, ADGF_UNSTABLE | ADGF_DEMO, WME_1_9_3),
 
 	// Shadows on the Vatican - Act I: Greed (Legacy Version) (Steam, Jul 2014) (German)
 	WME_WINENTRY("sotv1", "Legacy Version/Steam",

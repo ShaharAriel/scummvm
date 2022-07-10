@@ -19,6 +19,7 @@
  *
  */
 
+#include "chewy/cursor.h"
 #include "chewy/defines.h"
 #include "chewy/events.h"
 #include "chewy/globals.h"
@@ -32,7 +33,7 @@ namespace Rooms {
 
 void Room42::entry() {
 	if (!_G(gameState).R42BeamterWach) {
-		g_engine->_sound->playSound(0);
+		_G(det)->playSound(0, 0);
 		_G(det)->startDetail(0, 255, ANI_FRONT);
 	}
 
@@ -40,11 +41,11 @@ void Room42::entry() {
 		_G(SetUpScreenFunc) = setup_func;
 
 		if (!_G(flags).LoadGame) {
-			_G(det)->stop_detail(0);
+			_G(det)->stopDetail(0);
 			_G(timer_nr)[0] = _G(room)->set_timer(8, 5);
 			_G(det)->set_static_ani(8, -1);
 			_G(gameState).R42BeamterWach = true;
-			g_engine->_sound->stopSound(0);
+			_G(det)->stopSound(0);
 
 			_G(SetUpScreenFunc) = setup_func;
 
@@ -97,10 +98,10 @@ int16 Room42::useMailBag() {
 		return action_flag;
 
 	hideCur();
-	if (!_G(gameState).R42BeamterWach && !_G(gameState).inv_cur) {
+	if (!_G(gameState).R42BeamterWach && !_G(cur)->usingInventoryCursor()) {
 		action_flag = true;
 		getPumpkin(136);
-	} else if (_G(gameState).R42HoToBeamter && !_G(gameState).inv_cur && !_G(gameState).R42MarkeOk) {
+	} else if (_G(gameState).R42HoToBeamter && !_G(cur)->usingInventoryCursor() && !_G(gameState).R42MarkeOk) {
 		action_flag = true;
 		autoMove(3, P_CHEWY);
 		_G(gameState)._personHide[P_CHEWY] = true;
@@ -122,7 +123,7 @@ int16 Room42::useMailBag() {
 		_G(gameState)._personHide[P_CHEWY] = true;
 		startSetAILWait(10, 1, ANI_FRONT);
 		_G(gameState)._personHide[P_CHEWY] = false;
-		delInventory(_G(gameState).AkInvent);
+		delInventory(_G(cur)->getInventoryCursor());
 		startAadWait(183);
 		_G(obj)->calc_rsi_flip_flop(SIB_BKASTEN_R28);
 		_G(atds)->set_ats_str(206, 1, ATS_DATA);
@@ -172,7 +173,7 @@ void Room42::talkToStationEmployee() {
 		dia_nr = 14;
 	}
 
-	startAdsWait(dia_nr);
+	startDialogCloseupWait(dia_nr);
 }
 
 void Room42::dialogWithStationEmployee(int16 str_end_nr) {
@@ -193,7 +194,7 @@ void Room42::dialogWithStationEmployee(int16 str_end_nr) {
 			break;
 
 		case 2:
-			g_engine->_sound->playSound(4);
+			_G(det)->playSound(4, 0);
 			startSetAILWait(4, 13, ANI_FRONT);
 			break;
 
@@ -210,8 +211,8 @@ void Room42::dialogWithStationEmployee(int16 str_end_nr) {
 			SHOULD_QUIT_RETURN;
 		}
 
-		_G(det)->stop_detail(0);
-		g_engine->_sound->stopSound(0);
+		_G(det)->stopDetail(0);
+		_G(det)->stopSound(0);
 		startSetAILWait(1, 1, ANI_FRONT);
 		_G(det)->startDetail(2, 255, ANI_FRONT);
 
@@ -220,16 +221,16 @@ void Room42::dialogWithStationEmployee(int16 str_end_nr) {
 			SHOULD_QUIT_RETURN;
 		}
 
-		_G(det)->stop_detail(2);
+		_G(det)->stopDetail(2);
 		_G(det)->startDetail(0, 255, ANI_FRONT);
-		g_engine->_sound->playSound(0, 0);
-		g_engine->_sound->playSound(0);
+		_G(det)->playSound(0, 0);
+		_G(det)->playSound(0, 0);
 	}
 
 	_G(gameState)._personHide[P_CHEWY] = true;
 	_G(det)->startDetail(6, 255, ANI_FRONT);
 	startAadWait(135);
-	_G(det)->stop_detail(6);
+	_G(det)->stopDetail(6);
 	_G(flags).NoDiaBox = false;
 	_G(gameState)._personHide[P_CHEWY] = false;
 	showCur();

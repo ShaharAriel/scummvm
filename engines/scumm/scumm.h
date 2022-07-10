@@ -281,6 +281,76 @@ typedef uint16 ResId;
 class ResourceManager;
 
 /**
+ * DOS Programmable Interval Timer constants.
+ *
+ * The SCUMM engine (v1-v7, DOS) timer ticks are based on the jiffy unit (roughly 60Hz).
+ * Well, if we want to be pedantic about it, it operates on quarter jiffies (240Hz),
+ * a rate at which several screen effects are updated; but still, this value is divided
+ * by 4 in the main game loop in order for it to operate on whole jiffies.
+ * In order to obtain this behavior, the PIT is programmed to operate at roughly 240Hz,
+ * though these timings change from version to version (or game by game, for v6).
+ *
+ * Glossary:
+ * - Base frequency: this is the frequency at which the Intel 8253/54 PIT
+ *                   operates, namely obtained with the formula 105/88, which
+ *                   yields 1.193181818... MHz. We are storing it in Hz;
+ *
+ * - Divisor:        the base frequency in DOS is not used as-is, but it is instead
+ *                   divided by a customizable divisor which can range between
+ *                   0 and (2^16-1), where 0 is a shortcut for 2^16. This operation
+ *                   yields the custom frequency at which our custom interrupt
+ *                   gets called (hence "Programmable");
+ *
+ * - Orchestrator:   starting from SCUMM v5, games started using iMUSE, and apparently
+ *                   needed a more precise timing handling; this led to the introduction
+ *                   of a main orchestrator timer (which then handled the execution of
+                     other sub-timers), whose divisor (4096) was set up in the IMS
+ *                   drivers up until v7, in which the divisor (3977) was set up in the
+ *                   executable as a part of the INSANE orchestration;
+ *
+ * - Sub-timer:      custom made timers, operating under an orchestrator; in the macros
+ *                   below, "INC" refers to the increment of an accumulator which gets
+ *                   updated at each iteration of the orchestrator interrupt; "THRESH"
+ *                   refers to a threshold value of the aforementioned accumulator,
+ *                   beyond which the accumulator is decremented by the threshold value,
+ *                   and the interrupt of the sub-timer gets executed (e.g. the values
+ *                   below mainly refer to the interrupt which increments the SCUMM
+ *                   quarter frame counter.
+ *
+ * All the values below are presented as doubles, so to safely yield fractional results.
+ */
+
+#define PIT_BASE_FREQUENCY             1193182.0 // In Hz
+#define PIT_V1_DIVISOR                 65536.0
+#define PIT_V2_4_DIVISOR               5041.0
+#define PIT_V5_6_ORCHESTRATOR_DIVISOR  4096.0
+#define PIT_V5_6_SUBTIMER_INC          3433.0
+#define PIT_V5_SUBTIMER_THRESH         4167.0
+#define PIT_V6_SAMNMAX_SUBTIMER_THRESH 4167.0
+#define PIT_V6_DOTT_SUBTIMER_THRESH    4237.0
+#define PIT_V7_ORCHESTRATOR_DIVISOR    3977.0
+#define PIT_V7_SUBTIMER_INC            3977.0
+#define PIT_V7_SUBTIMER_THRESH         4971.0
+
+#define LOOM_STEAM_CDDA_RATE           240.0
+
+/**
+ * Amiga timing constants.
+ *
+ * Amiga versions of SCUMM games update the game timer at every
+ * V-Blank interrupt, incrementing it by 4 each time (which means
+ * a full frame/jiffie). The shake timer is instead updated every
+ * other V-Blank interrupt, so 8 quarter frames (2 frames/jiffies)
+ * at a time.
+ *
+ * The base rate is 50Hz for PAL systems and 60Hz for NTSC systems.
+ * We're going to target the latter in here, converting it in a quarter
+ * frame frequency.
+ */
+
+#define AMIGA_NTSC_VBLANK_RATE 240.0
+
+/**
  * Base class for all SCUMM engines.
  */
 class ScummEngine : public Engine, public Common::Serializable {
@@ -316,6 +386,7 @@ public:
 	ResourceManager *_res = nullptr;
 
 	bool _enableEnhancements = false;
+	bool _enableAudioOverride = false;
 
 protected:
 	VirtualMachineState vm;
@@ -383,7 +454,19 @@ public:
 protected:
 	virtual void parseEvent(Common::Event event);
 
-	int waitForTimer(int msec_delay);
+	void waitForTimer(int quarterFrames);
+	uint32 _lastWaitTime;
+
+	void setTimerAndShakeFrequency();
+
+	/**
+	 * Represents fractional milliseconds by decomposing the passed
+	 * value into integral and fractional parts, then incrementing the
+	 * integer part as needed on subsequent function calls.
+	 */
+	uint32 getIntegralTime(double fMsecs);
+	double _msecFractParts;
+
 	virtual void processInput();
 	virtual void processKeyboard(Common::KeyState lastKeyHit);
 	virtual void clearClickedStatus();
@@ -521,6 +604,7 @@ protected:
 	byte _saveLoadFlag = 0, _saveLoadSlot = 0;
 	uint32 _lastSaveTime = 0;
 	bool _saveTemporaryState = false;
+	bool _loadFromLauncher = false;
 	Common::String _saveLoadFileName;
 	Common::String _saveLoadDescription;
 
@@ -635,8 +719,8 @@ protected:
 	virtual void resetSentence() {}
 
 protected:
-	void beginCutscene(int *args);
-	void endCutscene();
+	virtual void beginCutscene(int *args);
+	virtual void endCutscene();
 	void abortCutscene();
 	void beginOverride();
 	void endOverride();
@@ -861,6 +945,7 @@ public:
 	int _screenHeight = 0, _screenWidth = 0;
 	VirtScreen _virtscr[4];		// Virtual screen areas
 	CameraData camera;			// 'Camera' - viewport
+	bool _cameraIsFrozen = false;
 
 	int _screenStartStrip = 0, _screenEndStrip = 0;
 	int _screenTop = 0;
@@ -940,6 +1025,7 @@ protected:
 	void setPCEPaletteFromPtr(const byte *ptr);
 	void setAmigaPaletteFromPtr(const byte *ptr);
 	virtual void setPaletteFromPtr(const byte *ptr, int numcolor = -1);
+	void updateColorTableV1(int renderMode);
 
 	virtual void setPalColor(int index, int r, int g, int b);
 	void setDirtyColors(int min, int max);
@@ -974,6 +1060,7 @@ protected:
 	// Screen rendering
 	byte *_compositeBuf;
 	byte *_herculesBuf = nullptr;
+	const uint16 *_ditheringTableV1 = nullptr;
 
 	virtual void drawDirtyScreenParts();
 	void updateDirtyScreen(VirtScreenNumber slot);
@@ -985,6 +1072,7 @@ protected:
 	void mac_undrawIndy3TextBox();
 	void mac_undrawIndy3CreditsText();
 
+	const byte *postProcessV1Graphics(VirtScreen *vs, int &x, int &y, int &width, int &height) const;
 	void ditherCGA(byte *dst, int dstPitch, int x, int y, int width, int height) const;
 
 public:
@@ -996,19 +1084,23 @@ protected:
 	void fadeOut(int effect);
 	void setScrollBuffer();
 
-	void unkScreenEffect6();
+	void dissolveEffectSelector();
 	void transitionEffect(int a);
 	void dissolveEffect(int width, int height);
 	void scrollEffect(int dir);
 
 	void updateScreenShakeEffect();
 
+public:
+	double getTimerFrequency();
+
 protected:
 	bool _shakeEnabled = false;
 	uint _shakeFrame = 0;
 	uint32 _shakeNextTick = 0;
 	uint32 _shakeTickCounter = 0;
-	const uint32 _shakeTimerRate;
+	double _shakeTimerRate;
+	double _timerFrequency;
 
 	void setShake(int mode);
 

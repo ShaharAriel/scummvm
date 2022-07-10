@@ -55,6 +55,7 @@ const PlatformDescription g_platforms[] = {
 	{ "xbox", "xbox", "xbox", "Microsoft Xbox", kPlatformXbox },
 	{ "cdi", "cdi", "cdi", "Philips CD-i", kPlatformCDi },
 	{ "ios", "ios", "ios", "Apple iOS", kPlatformIOS },
+	{ "android", "android", "android", "Android", kPlatformAndroid },
 	{ "os2", "os2", "os2", "OS/2", kPlatformOS2 },
 	{ "beos", "beos", "beos", "BeOS", kPlatformBeOS },
 	{ "ppc", "ppc", "ppc", "PocketPC", kPlatformPocketPC },
@@ -63,6 +64,8 @@ const PlatformDescription g_platforms[] = {
 	{ "pippin", "pippin", "pippin", "Pippin", kPlatformPippin },
 	{ "macintosh2", "macintosh2", "mac2", "Macintosh II", kPlatformMacintoshII },
 	{ "shockwave", "shockwave", "shock", "Shockwave", kPlatformShockwave },
+	{ "zx", "zx", "zx", "ZX Spectrum", kPlatformZX },
+	{ "ti994", "ti994", "ti994", "TI-99/4A", kPlatformTI994 },
 
 	{ nullptr, nullptr, nullptr, "Default", kPlatformUnknown }
 };

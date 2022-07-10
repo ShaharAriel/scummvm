@@ -9,7 +9,7 @@ From the Launcher, highlight a game on the games list, select **Edit Game**, and
 To find out which engine powers your game, have a look at the ScummVM Supported Games `wiki page
 <https://wiki.scummvm.org/index.php?title=Category:Supported_Games>`_.
 
-Engines: ADL_ | AGI_ | BLADERUNNER_ | CGE_ | CINE_ | DRASCULA_ | DREAMWEB_ | HDB_ | HOPKINS_ | KYRA_ | LURE_ | MADS_ | NEVERHOOD_ | SCI_ | SCUMM_ | SHERLOCK_ | SKY_ | SUPERNOVA_ | TOLTECS_ | WINTERMUTE_ | XEEN_ |
+Engines: ADL_ | AGI_ | AGOS_ | BLADERUNNER_ | CGE_ | CINE_ | DRASCULA_ | DREAMWEB_ | HDB_ | HOPKINS_ | KYRA_ | LURE_ | MADS_ | NEVERHOOD_ | SCI_ | SCUMM_ | SHERLOCK_ | SKY_ | SUPERNOVA_ | TOLTECS_ | WINTERMUTE_ | XEEN_ |
 
 .. figure:: ../images/settings/engine.png
 
@@ -103,6 +103,20 @@ Add speed menu
 
 ,,,,,,
 
+.. _AGOS:
+
+AGOS
+******
+
+.. _fadeout:
+
+Disable fade-out effects
+	Don't fade every screen to black when leaving a room.
+
+	*disable_fade_effects*
+
+,,,,,,
+
 .. _BLADERUNNER:
 
 BLADERUNNER
@@ -160,6 +174,14 @@ Color Blind Mode
 ,,,,,,
 
 .. _CINE:
+
+CHEWY
+*********
+
+Use original save/load screen
+	Uses the original save/load screens instead of the ScummVM screens.
+
+	*original_menus*
 
 CINE
 *********
@@ -508,6 +530,13 @@ Use NES Classic Palette
 
 	*mm_nes_classic_palette*
 
+.. _enhancements:
+
+Enable game-specific enhancements
+	Allow ScummVM to make small enhancements to the game, usually based on other versions of the same game.
+
+	*enable_enhancements*
+
 ,,,,,,,,,,
 
 .. _SHERLOCK:
@@ -641,4 +670,3 @@ More durable armor
 	Armor won't break until character is at -80HP, instead of the default -10HP.
 
 	*DurableArmor*
-

@@ -93,6 +93,9 @@ Cast::~Cast() {
 
 	if (_castArchive) {
 		_castArchive->close();
+
+		g_director->_openResFiles.erase(_castArchive->getPathName());
+
 		delete _castArchive;
 		_castArchive = nullptr;
 	}
@@ -189,6 +192,15 @@ void Cast::setCastMemberModified(int castId) {
 	cast->setModified(true);
 }
 
+CastMember *Cast::setCastMember(CastMemberID castId, CastMember *cast) {
+	if (_loadedCast->contains(castId.member)) {
+		_loadedCast->erase(castId.member);
+	}
+
+	_loadedCast->setVal(castId.member, cast);
+	return cast;
+}
+
 void Cast::setArchive(Archive *archive) {
 	_castArchive = archive;
 
@@ -197,6 +209,9 @@ void Cast::setArchive(Archive *archive) {
 	} else {
 		_macName = archive->getFileName();
 	}
+
+	// Register the resfile so that Cursor::readFromResource can find it
+	g_director->_openResFiles.setVal(archive->getPathName(), archive);
 }
 
 void Cast::loadArchive() {
@@ -219,7 +234,14 @@ bool Cast::loadConfig() {
 
 	uint16 len = stream->readUint16();
 	uint16 fileVersion = stream->readUint16(); // TODO: very high fileVersion means protected
-	_movieRect = Movie::readRect(*stream);
+	if (!g_director->_fixStageSize) {
+		_movieRect = Movie::readRect(*stream);
+	} else {
+		// Skipping rectangle and substituting it with the global one
+		for (int i = 0; i < 4; i++)
+			(void)stream->readSint16();
+		_movieRect = g_director->_fixStageRect;
+	}
 	if (!_isShared)
 		_movie->_movieRect = _movieRect;
 
@@ -390,7 +412,8 @@ void Cast::loadCast() {
 
 	// Pattern Tiles
 	if (_castArchive->hasResource(MKTAG('V', 'W', 'T', 'L'), -1)) {
-		debug("STUB: Unhandled VWTL resource.");
+		loadVWTL(*(r = _castArchive->getFirstResource(MKTAG('V', 'W', 'T', 'L'))));
+		delete r;
 	}
 
 	// Time code
@@ -1357,6 +1380,36 @@ void Cast::loadSord(Common::SeekableReadStreamEndian &stream) {
 	}
 
 	debugC(1, kDebugLoading, "Cast::loadSord(): number of entries: %d", numEntries);
+}
+
+// Pattern tiles
+//
+// Basically, a reference to Bitmap cast accompanied with rectrangle
+void Cast::loadVWTL(Common::SeekableReadStreamEndian &stream) {
+	debugC(1, kDebugLoading, "****** Loading CastMember petterns VWTL");
+
+	Common::Rect r;
+	uint16 castLibId = 0; // default for pre-D5
+	uint16 memberId;
+
+	for (int i = 0; i < kNumBuiltinTiles; i++) {
+		stream.readUint32(); // unused
+
+		if (_version >= kFileVer500)
+			castLibId = stream.readUint16();
+
+		memberId = stream.readUint16();
+
+		r = Movie::readRect(stream);
+
+		_tiles[i].bitmapId.castLib = castLibId;
+		_tiles[i].bitmapId.member = memberId;
+		_tiles[i].rect = r;
+
+		debugC(2, kDebugLoading, "Cast::loadCastDataVWCR(): entry %d - %u:%u [%d, %d, %d, %d]", i, castLibId, memberId,
+				r.left, r.top, r.right, r.bottom);
+	}
+
 }
 
 } // End of namespace Director

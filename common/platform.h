@@ -68,6 +68,7 @@ enum Platform {
 	kPlatformXbox,
 	kPlatformCDi,
 	kPlatformIOS,
+	kPlatformAndroid,
 	kPlatformOS2,
 	kPlatformBeOS,
 	kPlatformPocketPC,
@@ -76,6 +77,8 @@ enum Platform {
 	kPlatformPippin,
 	kPlatformMacintoshII,
 	kPlatformShockwave,
+	kPlatformZX,
+	kPlatformTI994,
 
 	kPlatformUnknown = -1
 };

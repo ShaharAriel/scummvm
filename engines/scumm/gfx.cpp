@@ -65,9 +65,14 @@ struct StripTable {
 };
 
 enum {
-	kScrolltime = 500,  // ms scrolling is supposed to take
-	kPictureDelay = 20,
-	kFadeDelay = 4 // 1/4th of a jiffie
+	kNoDelay = 0,
+	// This should actually be 3 in all games using it;
+	// every one of those games seems to accumulate some
+	// kind of internal random delay while performing
+	// the screen effect (like sound interrupts running,
+	// forcing the SCUMM timer to a lower frequency).
+	// I have added an extra quarter frame to emulate that.
+	kPictureDelay = 4
 };
 
 #define NUM_SHAKE_POSITIONS 8
@@ -82,11 +87,9 @@ static const int8 shake_positions[NUM_SHAKE_POSITIONS] = {
  * that the screen has 40 vertical strips (i.e. 320 pixel), and 25 horizontal
  * strips (i.e. 200 pixel). There is a hack in transitionEffect that
  * makes it work correctly in games which have a different screen height
- * (for example, 240 pixel), but nothing is done regarding the width, so this
- * code won't work correctly in COMI. Also, the number of iteration depends
- * on min(vertStrips, horizStrips}. So the 13 is derived from 25/2, rounded up.
- * And the 25 = min(25,40). Hence for Zak256 instead of 13 and 25, the values
- * 15 and 30 should be used, and for COMI probably 30 and 60.
+ * (for example, 240 pixel), but nothing is done regarding the width.
+ * The number of iterations is hardcoded from version 3 up to 7.
+ * Version 8 doesn't have any of these effects at all.
  */
 struct TransitionEffect {
 	byte numOfIterations;
@@ -241,6 +244,15 @@ GdiPCEngine::~GdiPCEngine() {
 
 GdiV1::GdiV1(ScummEngine *vm) : Gdi(vm) {
 	memset(&_V1, 0, sizeof(_V1));
+}
+
+void GdiV1::setRenderModeColorMap(const byte *map) {
+	_colorMap = map;
+}
+
+byte GdiV1::remapColorToRenderMode(byte col) const {
+	assert(_colorMap);
+	return _colorMap[col];
 }
 
 GdiV2::GdiV2(ScummEngine *vm) : Gdi(vm) {
@@ -733,29 +745,12 @@ void ScummEngine::drawStripToScreen(VirtScreen *vs, int x, int width, int top, i
 		src = _compositeBuf;
 		pitch = width * vs->format.bytesPerPixel;
 
-		if (_renderMode == Common::kRenderHercA || _renderMode == Common::kRenderHercG) {
-			ditherHerc(_compositeBuf, _herculesBuf, width, &x, &y, &width, &height);
-
-			src = _herculesBuf + x + y * kHercWidth;
-			pitch = kHercWidth;
-
-			// center image on the screen
-			x += (kHercWidth - _screenWidth * 2) / 2;	// (720 - 320*2)/2 = 40
-		} else if (_useCJKMode && m == 2) {
-			pitch *= m;
-			x *= m;
-			y *= m;
-			width *= m;
-			height *= m;
-		} else {
-			if (_renderMode == Common::kRenderCGA)
-				ditherCGA(_compositeBuf, width, x, y, width, height);
-
+		if (_game.platform == Common::kPlatformNES) {
 			// HACK: This is dirty hack which renders narrow NES rooms centered
 			// NES can address negative number strips and that poses problem for
 			// our code. So instead of adding zillions of fixes and potentially
 			// breaking other games, we shift it right at the rendering stage.
-			if ((_game.platform == Common::kPlatformNES) && (((_NESStartStrip > 0) && (vs->number == kMainVirtScreen)) || (vs->number == kTextVirtScreen))) {
+			if (((_NESStartStrip > 0) && (vs->number == kMainVirtScreen)) || (vs->number == kTextVirtScreen)) {
 				x += 16;
 				while (x + width >= _screenWidth)
 					width -= 16;
@@ -772,12 +767,120 @@ void ScummEngine::drawStripToScreen(VirtScreen *vs, int x, int width, int top, i
 					_system->copyRectToScreen(blackbuf, 16, 0, 0, 16, 240); // Fix left strip
 				}
 			}
+		} else if (_game.version == 1) {
+			src = postProcessV1Graphics(vs, x, y, width, height);
+			if (_renderMode == Common::kRenderHercA || _renderMode == Common::kRenderHercG)
+				pitch = kHercWidth;
 
+		} else if (_renderMode == Common::kRenderHercA || _renderMode == Common::kRenderHercG) {
+			ditherHerc(_compositeBuf, _herculesBuf, width, &x, &y, &width, &height);
+
+			src = _herculesBuf + x + y * kHercWidth;
+			pitch = kHercWidth;
+
+			// center image on the screen
+			x += (kHercWidth - _screenWidth * 2) / 2;	// (720 - 320*2)/2 = 40
+		} else if (_useCJKMode && m == 2) {
+			pitch *= m;
+			x *= m;
+			y *= m;
+			width *= m;
+			height *= m;
+		} else if (_renderMode == Common::kRenderCGA) {
+			ditherCGA(_compositeBuf, width, x, y, width, height);
 		}
 	}
 
 	// Finally blit the whole thing to the screen
 	_system->copyRectToScreen(src, pitch, x, y, width, height);
+}
+
+const byte *ScummEngine::postProcessV1Graphics(VirtScreen *vs, int &x, int &y, int &width, int &height) const {
+	static const byte zakVrbColMap[] =	{ 0x0, 0x5, 0x5, 0x5, 0xA, 0xA, 0xA, 0xF, 0xF, 0x5, 0x5, 0x5, 0xA, 0xA, 0xF, 0xF };
+	static const byte zakTxtColMap[] =	{ 0x0, 0xF, 0xA, 0x5, 0xA, 0x5, 0x5, 0xF, 0xA, 0xA, 0xA, 0xA, 0xA, 0x5, 0x5, 0xF };
+	static const byte mmVrbColMap[] =	{ 0x0, 0x5, 0x5, 0x5, 0xA, 0xA, 0xA, 0xF, 0xA, 0x5, 0x5, 0x5, 0xA, 0xA, 0xA, 0xF };
+
+	byte mmTxtColMap[16];
+	for (uint8 i = 0; i < ARRAYSIZE(mmTxtColMap); ++i)
+		mmTxtColMap[i] = mmVrbColMap[_gdi->remapColorToRenderMode(i)];
+
+	byte *res = _compositeBuf;
+	byte *dst = _compositeBuf;
+	const byte *src = res;
+
+	if (_renderMode == Common::kRenderCGA || _renderMode == Common::kRenderCGAComp) {
+		const byte *colMap = (_game.id == GID_ZAK) ? (vs->number == kVerbVirtScreen ? zakVrbColMap : zakTxtColMap) : (vs->number == kVerbVirtScreen ? mmVrbColMap : mmTxtColMap);
+
+		if (vs->number == kMainVirtScreen) {
+			for (int h = height; h; --h) {
+				for (int w = width >> 1; w; --w) {
+					*dst++ = (*src++ >> 2) & 3;
+					*dst++ = *src++ & 3;
+				}
+			}
+		} else {
+			for (int h = height; h; --h) {
+				for (int w = width >> 1; w; --w) {
+					*dst++ = (colMap[*src++] >> 2) & 3;
+					*dst++ = colMap[*src++] & 3;
+				}
+			}
+		}
+
+	} else if (_renderMode == Common::kRenderHercA || _renderMode == Common::kRenderHercG) {
+		const byte *colMap = (_game.id == GID_ZAK) ? zakVrbColMap : (vs->number == kVerbVirtScreen ? mmVrbColMap : mmTxtColMap);
+		dst = res = _herculesBuf;
+
+		if (vs->number == kMainVirtScreen) {
+			uint32 *dst2 = (uint32*)(dst + kHercWidth);
+			int pitch = (kHercWidth - width) << 1;
+			int pitch2 = pitch >> 2;
+			y = (y - vs->topline) * 2 + vs->topline;
+			height = MIN<int>(height << 1, kHercHeight - y);
+
+			for (int h = height >> 1; h; --h) {
+				for (int w = width >> 1; w; --w) {
+					*dst++ = (*src >> 3) & 1;
+					*dst++ = (*src >> 2) & 1;
+					*dst++ = (*src >> 1) & 1;
+					*dst++ = *src & 1;
+					*dst2++ = 0;
+					src += 2;
+				}
+				dst += pitch;
+				dst2 += pitch2;
+			}
+
+		} else {
+			int pitch = kHercWidth - (width << 1);
+			y -= vs->topline;
+			if (vs->number == kVerbVirtScreen) {
+				y += vs->topline * 2 - 16;
+				height = MIN<int>(height, kHercHeight - y);
+			}
+
+			for (int h = height; h; --h) {
+				for (int w = width; w; --w) {
+					uint8 col = colMap[*src++];
+					*dst++ = (col >> 1) & 1;
+					*dst++ = col & 1;
+				}
+				dst += pitch;
+			}
+		}
+
+		x = x * 2 + 40;
+		width *= 2;
+
+	} else if (vs->number == kTextVirtScreen) {
+		// For EGA, the omly colors that need remapping are for the kTextVirtScreen.
+		for (int h = height; h; --h)  {
+			for (int w = width; w; --w)
+				*dst++ = _gdi->remapColorToRenderMode(*src++);
+		}
+	}
+
+	return res;
 }
 
 // CGA
@@ -795,17 +898,16 @@ static const byte cgaDither[2][2][16] = {
 	{{0, 0, 1, 1, 0, 2, 2, 3, 0, 3, 1, 1, 3, 3, 1, 3},
 	 {0, 1, 0, 1, 2, 2, 0, 0, 3, 1, 1, 1, 3, 2, 1, 3}}};
 
-// CGA dithers 4x4 square with direct substitutes
-// Odd lines have colors swapped, so there will be checkered patterns.
-// But apparently there is a mistake for 10th color.
 void ScummEngine::ditherCGA(byte *dst, int dstPitch, int x, int y, int width, int height) const {
 	byte *ptr;
 	int idx1, idx2;
-
+	// CGA dithers 4x4 square with direct substitutes
+	// Odd lines have colors swapped, so there will be checkered patterns.
+	// But apparently there is a mistake for 10th color.
 	for (int y1 = 0; y1 < height; y1++) {
 		ptr = dst + y1 * dstPitch;
 
-		if (_game.version == 2)
+		if (_game.version <= 2)
 			idx1 = 0;
 		else
 			idx1 = (y + y1) % 2;
@@ -1958,6 +2060,21 @@ bool Gdi::drawStrip(byte *dstPtr, VirtScreen *vs, int x, int y, const int width,
 			_roomPalette = _vm->_verbPalette;
 		else
 			_roomPalette = _vm->_roomPalette;
+	}
+
+	// WORKAROUND: 256-color versions of Indy3 feature unusual pink and cyan
+	// horizontal lines when Indy meets Elsa in Berlin. This has only been fixed
+	// in the official FM-TOWNS release (with a few other subtle adjustments),
+	// but a simpler fix here is to override the pink and cyan colors in the local
+	// palette so that it matches the way these lines have been redrawn in the
+	// FM-TOWNS release.  We take care not to apply this palette change to the
+	// text or inventory, as they still require the original colors.
+	if (_vm->_game.id == GID_INDY3 && (_vm->_game.features & GF_OLD256) && _vm->_game.platform != Common::kPlatformFMTowns
+		&& _vm->_roomResource == 46 && smapLen == 43159 && vs->number == kMainVirtScreen && _vm->_enableEnhancements) {
+		if (_roomPalette[11] == 11 && _roomPalette[86] == 86)
+			_roomPalette[11] = 86;
+		if (_roomPalette[13] == 13 && _roomPalette[80] == 80)
+			_roomPalette[13] = 80;
 	}
 
 	return decompressBitmap(dstPtr, vs->pitch, smap_ptr + offset, height);
@@ -3154,10 +3271,10 @@ void GdiV1::drawStripV1Background(byte *dst, int dstPitch, int stripnr, int heig
 		charIdx = _V1.picMap[y + stripnr * height] * 8;
 		for (int i = 0; i < 8; i++) {
 			byte c = _V1.charMap[charIdx + i];
-			dst[0] = dst[1] = _V1.colors[(c >> 6) & 3];
-			dst[2] = dst[3] = _V1.colors[(c >> 4) & 3];
-			dst[4] = dst[5] = _V1.colors[(c >> 2) & 3];
-			dst[6] = dst[7] = _V1.colors[(c >> 0) & 3];
+			dst[0] = dst[1] = _colorMap[_V1.colors[(c >> 6) & 3]];
+			dst[2] = dst[3] = _colorMap[_V1.colors[(c >> 4) & 3]];
+			dst[4] = dst[5] = _colorMap[_V1.colors[(c >> 2) & 3]];
+			dst[6] = dst[7] = _colorMap[_V1.colors[(c >> 0) & 3]];
 			dst += dstPitch;
 		}
 	}
@@ -3172,10 +3289,10 @@ void GdiV1::drawStripV1Object(byte *dst, int dstPitch, int stripnr, int width, i
 		charIdx = _V1.objectMap[y * width + stripnr] * 8;
 		for (int i = 0; i < 8; i++) {
 			byte c = _V1.charMap[charIdx + i];
-			dst[0] = dst[1] = _V1.colors[(c >> 6) & 3];
-			dst[2] = dst[3] = _V1.colors[(c >> 4) & 3];
-			dst[4] = dst[5] = _V1.colors[(c >> 2) & 3];
-			dst[6] = dst[7] = _V1.colors[(c >> 0) & 3];
+			dst[0] = dst[1] = _colorMap[_V1.colors[(c >> 6) & 3]];
+			dst[2] = dst[3] = _colorMap[_V1.colors[(c >> 4) & 3]];
+			dst[4] = dst[5] = _colorMap[_V1.colors[(c >> 2) & 3]];
+			dst[6] = dst[7] = _colorMap[_V1.colors[(c >> 0) & 3]];
 			dst += dstPitch;
 		}
 	}
@@ -3815,7 +3932,7 @@ void ScummEngine::fadeIn(int effect) {
 		transitionEffect(effect - 1);
 		break;
 	case 128:
-		unkScreenEffect6();
+		dissolveEffectSelector();
 		break;
 	case 129:
 		break;
@@ -3877,7 +3994,7 @@ void ScummEngine::fadeOut(int effect) {
 			transitionEffect(effect - 1);
 			break;
 		case 128:
-			unkScreenEffect6();
+			dissolveEffectSelector();
 			break;
 		case 129:
 			// Just blit screen 0 to the display (i.e. display will be black)
@@ -3914,13 +4031,44 @@ void ScummEngine::fadeOut(int effect) {
  * @param a		the transition effect to perform
  */
 void ScummEngine::transitionEffect(int a) {
-	int delta[16];								// Offset applied during each iteration
+	int delta[16]; // Offset applied during each iteration
 	int tab_2[16];
 	int i, j;
 	int bottom;
 	int l, t, r, b;
+	int delay, numOfIterations;
 	const int height = MIN((int)_virtscr[kMainVirtScreen].h, _screenHeight);
-	const int delay = (VAR_FADE_DELAY != 0xFF) ? VAR(VAR_FADE_DELAY) * kFadeDelay : kPictureDelay;
+
+	if (VAR_FADE_DELAY == 0xFF) {
+		if (_game.version >= 2) {
+			delay = kPictureDelay;
+		} else {
+			delay = kNoDelay;
+		}
+	} else {
+		delay = VAR(VAR_FADE_DELAY);
+	}
+
+	// Amiga handles timing a whole frame at a time
+	// instead of using quarter frames; the following
+	// code gives my best approximation of that behavior
+	// and the resulting timing
+	if (_game.platform == Common::kPlatformAmiga) {
+		int amigaRest = (delay % 4);
+		delay = (delay / 4);
+		if (amigaRest > 0) {
+			delay += 1;
+		}
+		delay *= 10;
+	}
+
+	// V3+ games have the number of iterations hardcoded; we also
+	// have that number hardcoded for MM NES, so let's target that too:
+	if (_game.version >= 3 || _game.platform == Common::kPlatformNES) {
+		numOfIterations = transitionEffects[a].numOfIterations;
+	} else {
+		numOfIterations = (a == 0 || a == 4) ? ceil((height / 8.0) / 2) : height / 8;
+	}
 
 	for (i = 0; i < 16; i++) {
 		delta[i] = transitionEffects[a].deltaTable[i];
@@ -3931,7 +4079,7 @@ void ScummEngine::transitionEffect(int a) {
 	}
 
 	bottom = height / 8;
-	for (j = 0; j < transitionEffects[a].numOfIterations; j++) {
+	for (j = 0; j < numOfIterations; j++) {
 		for (i = 0; i < 4; i++) {
 			l = tab_2[i * 4];
 			t = tab_2[i * 4 + 1];
@@ -3962,9 +4110,11 @@ void ScummEngine::transitionEffect(int a) {
 		for (i = 0; i < 16; i++)
 			tab_2[i] += delta[i];
 
-		// Draw the current state to the screen and wait a few secs so the
-		// user can watch the effect taking place.
-		waitForTimer(delay);
+		// Draw the current state to the screen and wait
+		// for the appropriate number of quarter frames
+		if (!_fastMode) {
+			waitForTimer(delay);
+		}
 	}
 }
 
@@ -3979,11 +4129,12 @@ void ScummEngine::transitionEffect(int a) {
 void ScummEngine::dissolveEffect(int width, int height) {
 	VirtScreen *vs = &_virtscr[kMainVirtScreen];
 	int *offsets;
-	int blits_before_refresh, blits;
+	int blitsBeforeRefresh, blits, blitsToFreeze;
 	int x, y;
 	int w, h;
 	int i;
-
+	bool canHalt = false;
+	bool is1x1Pattern = (width == 1 && height == 1);
 	// There's probably some less memory-hungry way of doing this. But
 	// since we're only dealing with relatively small images, it shouldn't
 	// be too bad.
@@ -4043,19 +4194,31 @@ void ScummEngine::dissolveEffect(int width, int height) {
 		free(offsets2);
 	}
 
-	// Blit the image piece by piece to the screen. The idea here is that
-	// the whole update should take about a quarter of a second, assuming
-	// most of the time is spent in waitForTimer(). It looks good to me,
-	// but might still need some tuning.
+	// The whole effect has a variable duration, depending on
+	// the host machine speed. We want to be accurate, but we
+	// also want to actually *see* the effect, given that in modern
+	// machines this code would run at lightspeed, so let's declare
+	// a blitsBeforeRefresh variable, which serves as a threshold
+	// value allowing us to pause rendering every N blits.
+	//
+	// Pattern 1x1:
+	//   The original construct the image piece by piece but blits it
+	//   every 8 iterations of a loop with duration h. We try to imitate
+	//   this behavior by using blitsBeforeRefresh and by assigning it a value
+	//   which is a factor of blitsToFreeze.
+	//
+	// Pattern NxM:
+	//   The original construct the image piece by piece but blits it
+	//   every time it finds an offset smaller than the height of the virtual
+	//   screen. This is trivial to do in our code, so we just sleep for a
+	//   quarter frame everytime the condition above is met.
+	//
+	// If we ever get a blitsToFreeze == 0, we will use 18 in its place
+	// since it's the most typical value got out of the calculations.
 
 	blits = 0;
-	blits_before_refresh = (3 * w * h) / 25;
-
-	// Speed up the effect for CD Loom since it uses it so often. I don't
-	// think the original had any delay at all, so on modern hardware it
-	// wasn't even noticeable.
-	if (_game.id == GID_LOOM && (_game.version == 4))
-		blits_before_refresh *= 2;
+	blitsToFreeze = (h / 8); // The number of blits between which we delay rendering for pattern 1x1
+	blitsBeforeRefresh = (w * h) / (blitsToFreeze == 0 ? 18 : blitsToFreeze);
 
 	for (i = 0; i < w * h; i++) {
 		x = offsets[i] % vs->pitch;
@@ -4071,18 +4234,29 @@ void ScummEngine::dissolveEffect(int width, int height) {
 		else
 			_system->copyRectToScreen(vs->getPixels(x, y), vs->pitch, x, y + vs->topline, width, height);
 
+		// Test for 1x1 pattern...
+		canHalt |= is1x1Pattern && ++blits >= blitsBeforeRefresh;
 
-		if (++blits >= blits_before_refresh) {
+		// If that is true, then reset the blits var...
+		if (canHalt) {
 			blits = 0;
-			waitForTimer(30);
+		}
+
+		// Test for NxM pattern...
+		canHalt |= !is1x1Pattern && (offsets[i] < vs->h);
+
+		// Halt rendering for a quarter frame (or a whole frame in case of Amiga)...
+		if (canHalt) {
+			canHalt = false;
+			if (_game.platform == Common::kPlatformAmiga) {
+				waitForTimer(4);
+			} else {
+				waitForTimer(1);
+			}
 		}
 	}
 
 	free(offsets);
-
-	if (blits != 0) {
-		waitForTimer(30);
-	}
 }
 
 void ScummEngine::scrollEffect(int dir) {
@@ -4096,15 +4270,24 @@ void ScummEngine::scrollEffect(int dir) {
 	VirtScreen *vs = &_virtscr[kMainVirtScreen];
 
 	int x, y;
-	int step;
-	const int delay = (VAR_FADE_DELAY != 0xFF) ? VAR(VAR_FADE_DELAY) * kFadeDelay : kPictureDelay;
+	const int step = 8;
 
-	if ((dir == 0) || (dir == 1))
-		step = vs->h;
-	else
-		step = vs->w;
+	// Keep in mind: this effect is only present in v5 and v6, so VAR_FADE_DELAY is
+	// never uninitialized. The following check is here for good measure only.
+	int delay = (VAR_FADE_DELAY != 0xFF) ? VAR(VAR_FADE_DELAY) : kPictureDelay;
 
-	step = (step * delay) / kScrolltime;
+	// Amiga handles timing a whole frame at a time
+	// instead of using quarter frames; the following
+	// code gives my best approximation of that behavior
+	// and the resulting timing
+	if (_game.platform == Common::kPlatformAmiga) {
+		int amigaRest = (delay % 4);
+		delay = (delay / 4);
+		if (amigaRest > 0) {
+			delay += 1;
+		}
+		delay *= 10;
+	}
 
 	byte *src;
 	int m = _textSurfaceMultiplier;
@@ -4127,7 +4310,6 @@ void ScummEngine::scrollEffect(int dir) {
 					vsPitch,
 					0, (vs->h - step) * m,
 					vs->w * m, step * m);
-				_system->updateScreen();
 			}
 
 			waitForTimer(delay);
@@ -4150,7 +4332,6 @@ void ScummEngine::scrollEffect(int dir) {
 					vsPitch,
 					0, 0,
 					vs->w * m, step * m);
-				_system->updateScreen();
 			}
 
 			waitForTimer(delay);
@@ -4168,7 +4349,6 @@ void ScummEngine::scrollEffect(int dir) {
 				vsPitch,
 				(vs->w - step) * m, 0,
 				step * m, vs->h * m);
-			_system->updateScreen();
 
 			waitForTimer(delay);
 			x += step;
@@ -4185,7 +4365,6 @@ void ScummEngine::scrollEffect(int dir) {
 				vsPitch,
 				0, 0,
 				step, vs->h);
-			_system->updateScreen();
 
 			waitForTimer(delay);
 			x += step;
@@ -4196,7 +4375,7 @@ void ScummEngine::scrollEffect(int dir) {
 	}
 }
 
-void ScummEngine::unkScreenEffect6() {
+void ScummEngine::dissolveEffectSelector() {
 	// CD Loom (but not EGA Loom!) uses a more fine-grained dissolve
 	if (_game.id == GID_LOOM && _game.version == 4)
 		dissolveEffect(1, 1);
@@ -4228,7 +4407,7 @@ void ScummEngine::updateScreenShakeEffect() {
 		// but inside each respective ims driver during the driver load/init process. The screen shakes update every 8 ticks.
 		// LOOM uses either 236.696 Hz at 8 ticks delay or 473.297 Hz at 16 ticks delay, depending on the sound card selection.
 		// The outcome is the same...
-		_shakeTickCounter += ((1000000000 / _shakeTimerRate) * 8);
+		_shakeTickCounter += ((1000000 / _shakeTimerRate) * 8);
 		_shakeNextTick += (_shakeTickCounter / 1000);
 		_shakeTickCounter %= 1000;
 	}

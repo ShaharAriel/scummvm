@@ -31,9 +31,6 @@ namespace Hypno {
 void HypnoEngine::runMenu(Hotspots *hs, bool only_menu) {
 	Hotspot *h = hs->begin();
 	assert(h->type == MakeMenu);
-	if (!h->background.empty()) {
-		loadImage(h->background, 0, 0, false, true);
-	}
 
 	debugC(1, kHypnoDebugScene, "hotspot actions size: %d", h->actions.size());
 	for (Actions::const_iterator itt = h->actions.begin(); !only_menu && itt != h->actions.end(); ++itt) {
@@ -96,6 +93,8 @@ void HypnoEngine::runTimer(Timer *a) {
 		return; // Do not start another timer
 
 	uint32 delay = a->delay / 1000;
+	if (a->flag == "vus0")
+		_keepTimerDuringScenes = true;
 	debugC(1, kHypnoDebugScene, "Starting timer with %d secons", delay);
 
 	if (delay == 0 || !startCountdown(delay))
@@ -175,6 +174,10 @@ void HypnoEngine::runPlay(Play *a) {
 	else {
 		_nextSequentialVideoToPlay.push_back(MVideo(a->path, a->origin, false, false, false));
 	}
+}
+
+void HypnoEngine::runSound(Sound *a) {
+	playSound(a->path, 1);
 }
 
 void HypnoEngine::runAmbient(Ambient *a) {

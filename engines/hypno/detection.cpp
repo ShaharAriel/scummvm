@@ -24,6 +24,12 @@
 #include "engines/advancedDetector.h"
 #include "hypno/hypno.h"
 
+#define GAMEOPTION_ORIGINAL_CHEATS   GUIO_GAMEOPTIONS1
+#define GAMEOPTION_INFINITE_HEALTH   GUIO_GAMEOPTIONS2
+#define GAMEOPTION_INFINITE_AMMO     GUIO_GAMEOPTIONS3
+#define GAMEOPTION_UNLOCK_ALL_LEVELS GUIO_GAMEOPTIONS4
+#define GAMEOPTION_RESTORED_CONTENT  GUIO_GAMEOPTIONS5
+
 static const DebugChannelDef debugFlagList[] = {
 	{Hypno::kHypnoDebugMedia, "media", "Media debug channel"},
 	{Hypno::kHypnoDebugParser, "parser", "Parser debug channel"},
@@ -76,6 +82,16 @@ static const ADGameDescription gameDescriptions[] = {
 		AD_ENTRY2s("Setup1.Sax", "86b6ae45f45a8273ef3116be6bac01f5", 9591164,
 				"MISSIONS.LIB", "585704e26094cbaf14fbee90798e8d5d", 119945),
 		Common::DE_DEU,
+		Common::kPlatformDOS,
+		ADGF_TESTING,
+		GUIO1(GUIO_NOMIDI)
+	},
+	{
+		"sinistersix", // IT release
+		nullptr,
+		AD_ENTRY2s("DATA.Z", "8e1aa1ab39e38c4f1bf67c0b330b3991", 8740866,
+				"MISSIONS.LIB", "585704e26094cbaf14fbee90798e8d5d", 119945),
+		Common::IT_ITA,
 		Common::kPlatformDOS,
 		ADGF_TESTING,
 		GUIO1(GUIO_NOMIDI)
@@ -209,7 +225,7 @@ static const ADGameDescription gameDescriptions[] = {
 					"setup.exe", "bac1d734f2606dbdd0816dfa7a5cf518", 160740),
 		Common::EN_USA,
 		Common::kPlatformDOS,
-		ADGF_UNSTABLE,
+		ADGF_TESTING,
 		GUIO1(GUIO_NOMIDI)
 	},
 	{
@@ -224,6 +240,66 @@ static const ADGameDescription gameDescriptions[] = {
 	},
 	AD_TABLE_END_MARKER
 };
+
+static const ADExtraGuiOptionsMap optionsList[] = {
+	{
+		GAMEOPTION_ORIGINAL_CHEATS,
+		{
+			_s("Enable original cheats"),
+			_s("Allow cheats using the C key."),
+			"cheats",
+			true,
+			0,
+			0
+		}
+	},
+	{
+		GAMEOPTION_INFINITE_HEALTH,
+		{
+			_s("Enable infinite health cheat"),
+			_s("Player health will never decrease (except for game over scenes)."),
+			"infiniteHealth",
+			false,
+			0,
+			0
+		}
+	},
+	{
+		GAMEOPTION_INFINITE_AMMO,
+		{
+			_s("Enable infinite ammo cheat"),
+			_s("Player ammo will never decrease."),
+			"infiniteAmmo",
+			false,
+			0,
+			0
+		}
+	},
+	{
+		GAMEOPTION_UNLOCK_ALL_LEVELS,
+		{
+			_s("Unlock all levels"),
+			_s("All levels will be available to play."),
+			"unlockAllLevels",
+			false,
+			0,
+			0
+		}
+	},
+	{
+		GAMEOPTION_RESTORED_CONTENT,
+		{
+			_s("Enable restored content"),
+			_s("Add additional content that is not enabled the original implementation."),
+			"restored",
+			true,
+			0,
+			0
+		}
+	},
+	AD_EXTRA_GUI_OPTIONS_TERMINATOR
+};
+
 } // End of namespace Hypno
 
 static const char *const directoryGlobs[] = {
@@ -240,46 +316,10 @@ static const char *const directoryGlobs[] = {
 	nullptr
 };
 
-static const ExtraGuiOption hypnoExtraGuiOptionOriginalCheats = {
-	_s("Enable original cheats"),
-	_s("Allow cheats using the C key."),
-	"cheats",
-	true,
-	0,
-	0
-};
-
-static const ExtraGuiOption hypnoExtraGuiOptionInfiniteHealthCheat = {
-	_s("Enable infinite health cheat"),
-	_s("Player health will never decrease (except for game over scenes)."),
-	"infiniteHealth",
-	false,
-	0,
-	0
-};
-
-static const ExtraGuiOption hypnoExtraGuiOptionInfiniteAmmoCheat = {
-	_s("Enable infinite ammo cheat"),
-	_s("Player ammo will never decrease."),
-	"infiniteAmmo",
-	false,
-	0,
-	0
-};
-
-static const ExtraGuiOption hypnoExtraGuiOptionRestoredContent = {
-	_s("Enable restored content"),
-	_s("Add additional content that is not enabled the original implementation."),
-	"restored",
-	true,
-	0,
-	0
-};
-
 class HypnoMetaEngineDetection : public AdvancedMetaEngineDetection {
 public:
-	HypnoMetaEngineDetection() : AdvancedMetaEngineDetection(Hypno::gameDescriptions, sizeof(ADGameDescription), Hypno::hypnoGames) {
-		_guiOptions = GUIO1(GUIO_NOMIDI);
+	HypnoMetaEngineDetection() : AdvancedMetaEngineDetection(Hypno::gameDescriptions, sizeof(ADGameDescription), Hypno::hypnoGames, Hypno::optionsList) {
+		_guiOptions = GUIO6(GUIO_NOMIDI, GAMEOPTION_ORIGINAL_CHEATS, GAMEOPTION_INFINITE_HEALTH, GAMEOPTION_INFINITE_AMMO, GAMEOPTION_UNLOCK_ALL_LEVELS, GAMEOPTION_RESTORED_CONTENT);
 		_maxScanDepth = 3;
 		_directoryGlobs = directoryGlobs;
 	}
@@ -301,18 +341,7 @@ public:
 	const DebugChannelDef *getDebugChannels() const override {
 		return debugFlagList;
 	}
-
-	const ExtraGuiOptions getExtraGuiOptions(const Common::String &target) const override;
 };
-
-const ExtraGuiOptions HypnoMetaEngineDetection::getExtraGuiOptions(const Common::String &target) const {
-	ExtraGuiOptions options;
-	options.push_back(hypnoExtraGuiOptionOriginalCheats);
-	options.push_back(hypnoExtraGuiOptionInfiniteHealthCheat);
-	options.push_back(hypnoExtraGuiOptionInfiniteAmmoCheat);
-	options.push_back(hypnoExtraGuiOptionRestoredContent);
-	return options;
-}
 
 REGISTER_PLUGIN_STATIC(HYPNO_DETECTION, PLUGIN_TYPE_ENGINE_DETECTION, HypnoMetaEngineDetection);
 

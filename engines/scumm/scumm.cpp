@@ -106,9 +106,9 @@ ScummEngine::ScummEngine(OSystem *syst, const DetectorResult &dr)
 	  _game(dr.game),
 	  _filenamePattern(dr.fp),
 	  _language(dr.language),
-	  _rnd("scumm"),
-	  _shakeTimerRate(dr.game.version <= 3 ? 236696 : 291304)
+	  _rnd("scumm")
 {
+
 #ifdef USE_RGB_COLOR
 	if (_game.features & GF_16BIT_COLOR) {
 		if (_game.platform == Common::kPlatformPCEngine)
@@ -141,7 +141,16 @@ ScummEngine::ScummEngine(OSystem *syst, const DetectorResult &dr)
 		_gameMD5[i] = (byte)tmpVal;
 	}
 
+	_fileHandle = nullptr;
+
 	// Init all vars
+	_imuse = nullptr;
+	_imuseDigital = nullptr;
+	_musicEngine = nullptr;
+	_townsPlayer = nullptr;
+	_verbs = nullptr;
+	_objs = nullptr;
+	_sound = nullptr;
 	memset(&vm, 0, sizeof(vm));
 	memset(_localScriptOffsets, 0, sizeof(_localScriptOffsets));
 	vm.numNestedScripts = 0;
@@ -152,6 +161,9 @@ ScummEngine::ScummEngine(OSystem *syst, const DetectorResult &dr)
 	for (uint i = 0; i < ARRAYSIZE(_virtscr); i++) {
 		_virtscr[i].clear();
 	}
+
+	setTimerAndShakeFrequency();
+
 	camera.reset();
 	memset(_colorCycle, 0, sizeof(_colorCycle));
 	memset(_colorUsedByCycle, 0, sizeof(_colorUsedByCycle));
@@ -235,10 +247,6 @@ ScummEngine::ScummEngine(OSystem *syst, const DetectorResult &dr)
 			dialog.runModal();
 		}
 
-	// Check some render mode restrictions
-	if (_game.version <= 1)
-		_renderMode = Common::kRenderDefault;
-
 	switch (_renderMode) {
 	case Common::kRenderHercA:
 	case Common::kRenderHercG:
@@ -246,6 +254,7 @@ ScummEngine::ScummEngine(OSystem *syst, const DetectorResult &dr)
 			_renderMode = Common::kRenderDefault;
 		break;
 
+	case Common::kRenderCGAComp:
 	case Common::kRenderCGA:
 	case Common::kRenderEGA:
 	case Common::kRenderAmiga:
@@ -311,8 +320,10 @@ ScummEngine::ScummEngine(OSystem *syst, const DetectorResult &dr)
 	if (_renderMode == Common::kRenderHercA || _renderMode == Common::kRenderHercG) {
 		_herculesBuf = (byte *)malloc(kHercWidth * kHercHeight);
 	}
+	updateColorTableV1(_renderMode);
 
-	_isRTL = (_game.version >= 4 && _game.version < 7 && _game.heversion == 0 && _language == Common::HE_ISR);
+	_isRTL = (_language == Common::HE_ISR && _game.heversion == 0)
+			&& (_game.id == GID_MANIAC || (_game.version >= 4 && _game.version < 7));
 #ifndef DISABLE_HELP
 	// Create custom GMM dialog providing a help subdialog
 	assert(!_mainMenuDialog);
@@ -377,6 +388,7 @@ ScummEngine::~ScummEngine() {
 
 	free(_compositeBuf);
 	free(_herculesBuf);
+	delete[] _ditheringTableV1;
 
 	free(_16BitPalette);
 
@@ -804,6 +816,7 @@ Common::Error ScummEngine::init() {
 	const Common::FSNode gameDataDir(ConfMan.get("path"));
 
 	_enableEnhancements = ConfMan.getBool("enable_enhancements");
+	_enableAudioOverride = ConfMan.getBool("audio_override");
 
 	// Add default file directories.
 	if (((_game.platform == Common::kPlatformAmiga) || (_game.platform == Common::kPlatformAtariST)) && (_game.version <= 4)) {
@@ -2084,26 +2097,21 @@ int ScummEngine::getTalkSpeed() {
 Common::Error ScummEngine::go() {
 	setTotalPlayTime();
 
+	_lastWaitTime = _system->getMillis();
+
 	// If requested, load a save game instead of running the boot script
 	if (_saveLoadFlag != 2 || !loadState(_saveLoadSlot, _saveTemporaryState)) {
 		_saveLoadFlag = 0;
 		runBootscript();
 	} else {
+		_loadFromLauncher = true; // The only purpose of this is triggering the IQ points update for INDY3/4
 		_saveLoadFlag = 0;
 	}
-
-	int diff = 0;	// Duration of one loop iteration
 
 	while (!shouldQuit()) {
 		// Randomize the PRNG by calling it at regular intervals. This ensures
 		// that it will be in a different state each time you run the program.
 		_rnd.getRandomNumber(2);
-
-		// Notify the script about how much time has passed, in ticks (60 ticks per second)
-		if (VAR_TIMER != 0xFF)
-			VAR(VAR_TIMER) = diff * 60 / 1000;
-		if (VAR_TIMER_TOTAL != 0xFF)
-			VAR(VAR_TIMER_TOTAL) += diff * 60 / 1000;
 
 		// Determine how long to wait before the next loop iteration should start
 		int delta = (VAR_TIMER_NEXT != 0xFF) ? VAR(VAR_TIMER_NEXT) : 4;
@@ -2133,26 +2141,24 @@ Common::Error ScummEngine::go() {
 			delta += ((ScummEngine_v0 *)this)->DelayCalculateDelta();
 		}
 
-		// WORKAROUND: walking speed in the original v1 interpreter
-		// is sometimes slower (e.g. during scrolling) than in ScummVM.
-		// This is important for the door-closing action in the dungeon,
-		// otherwise (delta < 6) a single kid is able to escape.
-		if (_game.version == 1 && isScriptRunning(137)) {
-			delta = 6;
+		// In MANIAC V1, the workings of the wait loop will increment the
+		// timer past the comparison, producing a longer wait loop than
+		// expected. The timer resolution is lower than the frame-time
+		// derived from it, i.e., one tick represents three frames. We need
+		// to round up VAR_TIMER_NEXT to the nearest multiple of three.
+		if (_game.id == GID_MANIAC && _game.version == 1) {
+			delta = ceil(delta / 3.0) * 3;
 		}
 
-		// Wait and start the stop watch at the time the wait is assumed
+		// Wait, start and stop the stop watch at the time the wait is assumed
 		// to end. There is no guarantee that the wait is that exact,
 		// but this way if it overshoots that time will count as part
 		// of the main loop.
 
-		diff = waitForTimer(delta * 1000 / 60 - diff);
+		waitForTimer(delta * 4);
 
 		// Run the main loop
 		scummLoop(delta);
-
-		// Halt the stop watch and compute how much time this iteration took.
-		diff = _system->getMillis() - diff;
 
 		if (shouldQuit()) {
 			// TODO: Maybe perform an autosave on exit?
@@ -2163,17 +2169,19 @@ Common::Error ScummEngine::go() {
 	return Common::kNoError;
 }
 
-int ScummEngine::waitForTimer(int msec_delay) {
-	uint32 end_time;
+void ScummEngine::waitForTimer(int quarterFrames) {
+	uint32 endTime, cur;
+	uint32 msecDelay = getIntegralTime(quarterFrames * (1000 / _timerFrequency));
 
 	if (_fastMode & 2)
-		msec_delay = 0;
+		msecDelay = 0;
 	else if (_fastMode & 1)
-		msec_delay = 10;
+		msecDelay = 10;
 
-	uint32 cur = _system->getMillis();;
-
-	end_time = cur + msec_delay;
+	cur = _system->getMillis();
+	uint32 diff = cur - _lastWaitTime;
+	msecDelay = (msecDelay > diff) ? msecDelay - diff : 0;
+	endTime = cur + msecDelay;
 
 	while (!shouldQuit()) {
 		_sound->updateCD(); // Loop CD Audio if needed
@@ -2195,20 +2203,78 @@ int ScummEngine::waitForTimer(int msec_delay) {
 		_refreshDuration[_refreshArrayPos] = (int)(cur - screenUpdateTimerStart);
 		_refreshArrayPos = (_refreshArrayPos + 1) % ARRAYSIZE(_refreshDuration);
 #endif
-		if (cur >= end_time)
+		if (cur >= endTime)
 			break;
-		_system->delayMillis(MIN<uint32>(10, end_time - cur));
+		_system->delayMillis(MIN<uint32>(10, endTime - cur));
 	}
 
-	// Return the expected end time, which may be different from the actual
-	// time. This helps the main loop maintain consistent timing.
+	// Set the last wait time as the expected end time, which may be different
+	// from the actual time. This helps the main loop maintain consistent timing.
 	//
 	// If it's lagging too far behind, we probably resumed from pausing, or
 	// the process was suspended, or any such thing. We probably can't
 	// sensibly detect all of them from within ScummVM, so in that case we
 	// simply return the current time to catch up.
 
-	return (cur > end_time + 50) ? cur : end_time;
+	_lastWaitTime = (cur > endTime + 50) ? cur : endTime;
+}
+
+uint32 ScummEngine::getIntegralTime(double fMsecs) {
+	double msecIntPart;
+	_msecFractParts += modf(fMsecs, &msecIntPart);
+	if (_msecFractParts >= 1) {
+		_msecFractParts--;
+		msecIntPart++;
+	}
+
+	return msecIntPart;
+}
+
+void ScummEngine::setTimerAndShakeFrequency() {
+	_shakeTimerRate = _timerFrequency = 240.0;
+
+	if (_game.platform == Common::kPlatformDOS || _game.platform == Common::kPlatformWindows || _game.platform == Common::kPlatformUnknown) {
+		switch (_game.version) {
+		case 1:
+			if (_game.id == GID_MANIAC) {
+				// In MANIAC V1, one tick represents three frames,
+				// i.e., 12 quarter-frames.
+				_shakeTimerRate = _timerFrequency = PIT_BASE_FREQUENCY / PIT_V1_DIVISOR * 12;
+			} else {
+				_shakeTimerRate = _timerFrequency = PIT_BASE_FREQUENCY / PIT_V2_4_DIVISOR;
+			}
+			break;
+		case 2:
+		case 3:
+		case 4:
+			_shakeTimerRate = _timerFrequency = PIT_BASE_FREQUENCY / PIT_V2_4_DIVISOR;
+			break;
+		case 5:
+			_shakeTimerRate = _timerFrequency = PIT_BASE_FREQUENCY / PIT_V5_6_ORCHESTRATOR_DIVISOR;
+			_timerFrequency *= PIT_V5_6_SUBTIMER_INC / PIT_V5_SUBTIMER_THRESH;
+			break;
+		case 6:
+			_shakeTimerRate = _timerFrequency = PIT_BASE_FREQUENCY / PIT_V5_6_ORCHESTRATOR_DIVISOR;
+			if (_game.id == GID_TENTACLE) {
+				_timerFrequency *= PIT_V5_6_SUBTIMER_INC / PIT_V6_DOTT_SUBTIMER_THRESH;
+			} else {
+				_timerFrequency *= PIT_V5_6_SUBTIMER_INC / PIT_V6_SAMNMAX_SUBTIMER_THRESH;
+			}
+			break;
+		case 7:
+			_shakeTimerRate = _timerFrequency = PIT_BASE_FREQUENCY / PIT_V7_ORCHESTRATOR_DIVISOR;
+			_timerFrequency *= PIT_V7_SUBTIMER_INC / PIT_V7_SUBTIMER_THRESH;
+			break;
+		default:
+			_shakeTimerRate = _timerFrequency = 240.0;
+		}
+	} else if (_game.platform == Common::kPlatformAmiga) {
+		_shakeTimerRate = _timerFrequency = AMIGA_NTSC_VBLANK_RATE;
+	}
+}
+
+double ScummEngine::getTimerFrequency() {
+	return _timerFrequency;
 }
 
 void ScummEngine_v0::scummLoop(int delta) {
@@ -2218,6 +2284,12 @@ void ScummEngine_v0::scummLoop(int delta) {
 }
 
 void ScummEngine::scummLoop(int delta) {
+	// Notify the script about how much time has passed, in jiffies
+	if (VAR_TIMER != 0xFF)
+		VAR(VAR_TIMER) = delta;
+	if (VAR_TIMER_TOTAL != 0xFF)
+		VAR(VAR_TIMER_TOTAL) += delta;
+
 	if (_game.version >= 3) {
 		VAR(VAR_TMR_1) += delta;
 		VAR(VAR_TMR_2) += delta;
@@ -2257,14 +2329,18 @@ void ScummEngine::scummLoop(int delta) {
 	scummLoop_updateScummVars();
 
 	if (_game.features & GF_AUDIOTRACKS) {
-		// Covered automatically by the Sound class
+		VAR(VAR_MUSIC_TIMER) = _sound->getCDMusicTimer();
 	} else if (VAR_MUSIC_TIMER != 0xFF) {
 		if (_sound->useReplacementAudioTracks() && _sound->getCurrentCDSound()) {
+			// The replacement music timer operates on real time, adjusted to
+			// the expected length of the Loom Overture (since there are so
+			// many different recordings of it). It's completely independent of
+			// the SCUMM engine's timer frequency.
 			_sound->updateMusicTimer();
 			VAR(VAR_MUSIC_TIMER) = _sound->getMusicTimer();
 		} else if (_musicEngine) {
 			// The music engine generates the timer data for us.
-			VAR(VAR_MUSIC_TIMER) = _musicEngine->getMusicTimer();
+			VAR(VAR_MUSIC_TIMER) = _musicEngine->getMusicTimer() * _timerFrequency / 240.0;
 		}
 	}
 
@@ -2277,58 +2353,16 @@ load_game:
 		clearCharsetMask();
 		_charset->_hasMask = false;
 
-		if (_game.id == GID_LOOM) {
-			// HACK as in game save stuff isn't supported exactly as in the original interpreter when using the
-			// ScummVM save/load dialog. The original save/load screen uses a special script (which we cannot
-			// call without displaying that screen) which will also makes some necessary follow-up operations. We
-			// simply try to achieve that manually. It fixes bugs #6011 and #13369.
-			// We just have to kind of pretend that we've gone through the save/load "room" (with all the right
-			// variables in place), so that all the operations get triggered properly.
-			// The glitch with the flask (#6011) seems to be present only in the DOS EGA, Amiga, Atari ST and
-			// FM-Towns versions. Mac, DOS Talkie and PC-Engine don't have that bug. We can rely on our old hack
-			// there, since it wouldn't work otherwise, anyway.
-			int args[NUM_SCRIPT_LOCAL];
-			memset(args, 0, sizeof(args));
+		if (_game.version > 3) {
+			if (_townsPlayer)
+				_townsPlayer->restoreAfterLoad();
 
-			uint saveLoadVar = 100;
-			if (_game.platform == Common::kPlatformMacintosh)
-				saveLoadVar = 105;
-			else if (_game.platform == Common::kPlatformPCEngine || _game.version == 4)
-				saveLoadVar = 150;
-
-			// Run this hack only under conditions where the original save script could actually be executed.
-			// Otherwise this would cause all sorts of glitches. Also exclude Mac, PC-Engine and DOS Talkie...
-			if (saveLoadVar == 100 && _userPut > 0 && !isScriptRunning(VAR(VAR_VERB_SCRIPT))) {
-				uint16 prevFlag = VAR(214) & 0x6000;
-				beginCutscene(args);
-				uint16 blockVerbsFlag = VAR(214) & (0x6000 ^ prevFlag);
-				if (Actor *a = derefActor(VAR(VAR_EGO))) {
-					// This is used to restore the correct camera position.
-					VAR(171) = a->_walkbox;
-					VAR(172) = a->getRealPos().x;
-					VAR(173) = a->getRealPos().y;
-				}
-				startScene(70, nullptr, 0);
-				VAR(saveLoadVar) = 0;
-				VAR(214) &= ~blockVerbsFlag;
-				endCutscene();
-			} else if (VAR(saveLoadVar) == 2) {
-				// This is our old hack. If verbs should be shown restore them.
-				byte restoreScript = (_game.platform == Common::kPlatformFMTowns) ? 17 : 18;
-				args[0] = 2;
-				runScript(restoreScript, 0, 0, args);
-				// Reset two variables, similar to what the save script would do, to avoid minor glitches
-				// of the verb image on the right of the distaff (image remaining blank when moving the
-				// mouse cursor over an object, bug #13369).
-				VAR(saveLoadVar + 2) = VAR(saveLoadVar + 3) = 0;
-			}
-
-		} else if (_game.version > 3) {
 			for (int i = 0; i < _numVerbs; i++)
 				drawVerb(i, 0);
-		} else {
-			redrawVerbs();
 		}
+
+		// Update volume settings
+		syncSoundSettings();
 
 		handleMouseOver(false);
 
@@ -2519,30 +2553,130 @@ void ScummEngine::scummLoop_handleSaveLoad() {
 	}
 }
 
-void ScummEngine_v4::scummLoop_handleSaveLoad() {
-	// copy saveLoadFlag as handleSaveLoad() resets it
-	byte saveLoad = _saveLoadFlag;
+void ScummEngine_v3::scummLoop_handleSaveLoad() {
+	bool processIQPoints = (_game.id == GID_INDY3) && (_saveLoadFlag == 2 || _loadFromLauncher);
+	_loadFromLauncher = false;
 
-	ScummEngine_v5::scummLoop_handleSaveLoad();
+	ScummEngine::scummLoop_handleSaveLoad();
 
-	// update IQ points after loading
-	if (saveLoad == 2) {
-		if (_game.id == GID_INDY3)
-			updateIQPoints();
+	if (_completeScreenRedraw) {
+		clearCharsetMask();
+		_charset->_hasMask = false;
+		bool restoreFMTownsSounds = (_townsPlayer != nullptr);
+
+		if (_game.id == GID_LOOM) {
+			// HACK as in game save stuff isn't supported exactly as in the original interpreter when using the
+			// ScummVM save/load dialog. The original save/load screen uses a special script (which we cannot
+			// call without displaying that screen) which will also makes some necessary follow-up operations. We
+			// simply try to achieve that manually. It fixes bugs #6011 and #13369.
+			// We just have to kind of pretend that we've gone through the save/load "room" (with all the right
+			// variables in place), so that all the operations get triggered properly.
+			// The Mac, DOS Talkie and PC-Engine don't have the bugs. We can rely on our old hack there, since
+			// it wouldn't work otherwise, anyway.
+			int args[NUM_SCRIPT_LOCAL];
+			memset(args, 0, sizeof(args));
+
+			uint saveLoadVar = 100;
+			if (_game.platform == Common::kPlatformMacintosh)
+				saveLoadVar = 105;
+			else if (_game.platform == Common::kPlatformPCEngine || _game.version == 4)
+				saveLoadVar = 150;
+
+			// Run this hack only under conditions where the original save script could actually be executed.
+			// Otherwise this would cause all sorts of glitches. Also exclude Mac, PC-Engine and DOS Talkie...
+			if (saveLoadVar == 100 && _userPut > 0 && !isScriptRunning(VAR(VAR_VERB_SCRIPT))) {
+				uint16 prevFlag = VAR(214) & 0x6000;
+				beginCutscene(args);
+				uint16 blockVerbsFlag = VAR(214) & (0x6000 ^ prevFlag);
+				if (Actor *a = derefActor(VAR(VAR_EGO))) {
+					// This is used to restore the correct camera position.
+					VAR(171) = a->_walkbox;
+					VAR(172) = a->getRealPos().x;
+					VAR(173) = a->getRealPos().y;
+				}
+				startScene(70, nullptr, 0);
+				VAR(saveLoadVar) = 0;
+				VAR(214) &= ~blockVerbsFlag;
+				endCutscene();
+
+				if (_game.platform == Common::kPlatformFMTowns && VAR(163)) {
+					// Sound restore script. Unlike other versions which handle this
+					// inside the usual entry scripts, FM-Towns calls this from the save script.
+					memset(args, 0, sizeof(args));
+					args[0] = VAR(163);
+					runScript(38, false, false, args);
+				}
+
+				restoreFMTownsSounds = false;
+
+			} else if (VAR(saveLoadVar) == 2) {
+				// This is our old hack. If verbs should be shown restore them.
+				byte restoreScript = (_game.platform == Common::kPlatformFMTowns) ? 17 : 18;
+				args[0] = 2;
+				runScript(restoreScript, 0, 0, args);
+				// Reset two variables, similiar to what the save script would do, to avoid minor glitches
+				// of the verb image on the right of the distaff (image remainung blank when moving the
+				// mouse cursor over an object, bug #13369).
+				VAR(saveLoadVar + 2) = VAR(saveLoadVar + 3) = 0;
+			}
+
+		} else {
+			if (_game.platform == Common::kPlatformNES) {
+				// WORKAROUND: Original save/load script ran this script
+				// after game load, and o2_loadRoomWithEgo() does as well
+				// this script starts character-dependent music
+				// Fixes bug #3362: MANIACNES: Music Doesn't Start On Load Game
+				if (_game.platform == Common::kPlatformNES) {
+					runScript(5, 0, 0, nullptr);
+					if (VAR(224))
+						_sound->addSoundToQueue(VAR(224));
+				}
+
+			} else if (_game.platform != Common::kPlatformC64 && _game.platform != Common::kPlatformMacintosh) {
+				// MM and ZAK (v1/2)
+				int saveLoadRoom = 50;
+				int saveLoadVar = 21;
+				int saveLoadEnable = 1;
+
+				if (_game.id == GID_INDY3) {
+					saveLoadRoom = 14;
+					saveLoadVar = 58;
+				} else if (_game.platform == Common::kPlatformFMTowns) {
+					// ZAK FM-Towns
+					saveLoadVar = 115;
+				}
+
+				// Only execute this if the original would even allow saving in that situation
+				if (VAR(saveLoadVar) == saveLoadEnable && _userPut > 0 && !(VAR_VERB_SCRIPT != 0xFF && isScriptRunning(VAR(VAR_VERB_SCRIPT)))) {
+					int args[NUM_SCRIPT_LOCAL];
+					memset(args, 0, sizeof(args));
+					beginCutscene(args);
+					startScene(saveLoadRoom, nullptr, 0);
+					endCutscene();
+					restoreFMTownsSounds = false;
+				}
+			}
+
+			// update IQ points after loading
+			if (processIQPoints)
+				updateIQPoints();
+
+			redrawVerbs();
+		}
+
+		if (restoreFMTownsSounds)
+			_townsPlayer->restoreAfterLoad();
 	}
 }
-
 void ScummEngine_v5::scummLoop_handleSaveLoad() {
-	// copy saveLoadFlag as handleSaveLoad() resets it
-	byte saveLoad = _saveLoadFlag;
+	bool processIQPoints = (_game.id == GID_INDY4) && (_saveLoadFlag == 2 || _loadFromLauncher);
+	_loadFromLauncher = false;
 
 	ScummEngine::scummLoop_handleSaveLoad();
 
 	// update IQ points after loading
-	if (saveLoad == 2) {
-		if (_game.id == GID_INDY4)
-			runScript(145, 0, 0, nullptr);
-	}
+	if (processIQPoints)
+		runScript(145, 0, 0, nullptr);
 }
 
 #ifdef ENABLE_SCUMM_7_8

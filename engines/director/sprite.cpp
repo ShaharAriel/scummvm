@@ -212,6 +212,13 @@ MacShape *Sprite::getShape() {
 	shape->backColor = _backColor;
 	shape->lineSize = _thickness & 0x3;
 	shape->pattern = getPattern();
+	shape->tile = nullptr;
+	shape->tileRect = nullptr;
+
+	if (shape->pattern > 56 && shape->pattern <= 64) {
+		shape->tile = g_director->getTile(shape->pattern - 57);
+		shape->tileRect = &g_director->getTileRect(shape->pattern - 57);
+	}
 
 	if (g_director->getVersion() >= 300 && shape->spriteType == kCastMemberSprite) {
 		if (!_cast) {
@@ -343,6 +350,9 @@ bool Sprite::respondsToMouse() {
 }
 
 bool Sprite::isActive() {
+	if (_moveable)
+		return true;
+
 	if (_cast && _cast->_type == kCastButton)
 		return true;
 
@@ -439,17 +449,18 @@ void Sprite::setCast(CastMemberID memberID) {
 	 *   1. The cast member's type
 	 *   2. The sprite's type
 	 * If the two types do not align, the sprite should not render.
-	 * 
+	 *
 	 * Before D4, you needed to manually set a sprite's type along
 	 * with its castNum.
-	 * 
+	 *
 	 * Starting in D4, setting a sprite's castNum also set its type
 	 * to an appropriate default.
 	 */
 
 	_castId = memberID;
 	_cast = _movie->getCastMember(_castId);
-	if (g_director->getVersion() >= 400)
+	//As QDShapes don't have an associated cast, we must not change their _SpriteType.
+	if (g_director->getVersion() >= 400 && !isQDShape())
 		_spriteType = kCastMemberSprite;
 
 	if (_cast) {

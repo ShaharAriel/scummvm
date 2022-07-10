@@ -32,7 +32,7 @@
 #include "ags/shared/core/types.h"
 #include "ags/engine/ac/character_extras.h"
 #include "ags/shared/ac/common.h"
-#include "ags/shared/ac/dialog_topic.h"
+#include "ags/engine/ac/dialog.h"
 #include "ags/engine/ac/button.h"
 #include "ags/engine/ac/dynamic_sprite.h"
 #include "ags/engine/ac/game.h"
@@ -175,7 +175,6 @@ static void ReadMoveList_Aligned(Stream *in) {
 	AlignedStream align_s(in, Shared::kAligned_Read);
 	for (int i = 0; i < _GP(game).numcharacters + MAX_ROOM_OBJECTS + 1; ++i) {
 		_GP(mls)[i].ReadFromFile_Legacy(&align_s);
-
 		align_s.Reset();
 	}
 }

@@ -24,7 +24,6 @@
 #include "chewy/cursor.h"
 #include "chewy/events.h"
 #include "chewy/globals.h"
-#include "chewy/mouse.h"
 #include "chewy/resource.h"
 #include "chewy/sound.h"
 #include "common/events.h"
@@ -40,7 +39,6 @@ bool VideoPlayer::playVideo(uint num, bool stopMusic) {
 
 	if (stopMusic) {
 		g_engine->_sound->stopMusic();
-		_G(currentSong) = -1;
 	}
 
 	if (!cfoDecoder->loadStream(videoStream)) {
@@ -57,7 +55,7 @@ bool VideoPlayer::playVideo(uint num, bool stopMusic) {
 	bool keepPlaying = true;
 
 	g_system->getPaletteManager()->grabPalette(curPalette, 0, 256);
-	_G(cur)->hide_cur();
+	_G(cur)->hideCursor();
 
 	// Clear events
 	Common::Event event;
@@ -68,7 +66,7 @@ bool VideoPlayer::playVideo(uint num, bool stopMusic) {
 
 	while (!g_engine->shouldQuit() && !cfoDecoder->endOfVideo() && !skipVideo && keepPlaying) {
 		if (cfoDecoder->needsUpdate()) {
-			const ::Graphics::Surface *frame = cfoDecoder->decodeNextFrame();
+			const Graphics::Surface *frame = cfoDecoder->decodeNextFrame();
 			if (frame) {
 				const byte *srcP = (const byte *)frame->getPixels();
 				byte *destP = (byte *)g_screen->getPixels();
@@ -90,7 +88,7 @@ bool VideoPlayer::playVideo(uint num, bool stopMusic) {
 		// FIXME: We ignore mouse events because the game checks
 		// for left mouse down, instead of up, so releasing the
 		// mouse button results in video skipping
-		if (_G(in)->getSwitchCode() == Common::KEYCODE_ESCAPE)
+		if (g_events->getSwitchCode() == Common::KEYCODE_ESCAPE)
 			skipVideo = true;
 
 		// Clear any pending keys
@@ -101,7 +99,7 @@ bool VideoPlayer::playVideo(uint num, bool stopMusic) {
 	cfoDecoder->close();
 
 	g_system->getPaletteManager()->setPalette(curPalette, 0, 256);
-	_G(cur)->show_cur();
+	_G(cur)->showCursor();
 
 	delete videoResource;
 	delete cfoDecoder;
@@ -121,7 +119,7 @@ bool VideoPlayer::handleCustom(uint num, uint frame, CfoDecoder *cfoDecoder) {
 		// Room10::cut_serv
 		_G(atds)->print_aad(scrollx, scrolly);
 		if (frame == 31)
-			start_aad(107, 0);
+			start_aad(107, 0, true);
 		break;
 	case FCUT_009:
 	case FCUT_010:
@@ -138,7 +136,7 @@ bool VideoPlayer::handleCustom(uint num, uint frame, CfoDecoder *cfoDecoder) {
 		if (num == FCUT_010) {
 			_G(atds)->print_aad(scrollx, scrolly);
 			if (frame == 43)
-				start_aad(106, 0);
+				start_aad(106, 0, true);
 		}
 		break;
 	case FCUT_032:
@@ -164,13 +162,13 @@ bool VideoPlayer::handleCustom(uint num, uint frame, CfoDecoder *cfoDecoder) {
 
 		switch (frame) {
 		case 121:
-			start_aad(599, -1);
+			start_aad(599, -1, true);
 			break;
 		case 247:
-			start_aad(600, -1);
+			start_aad(600, -1, true);
 			break;
 		case 267:
-			start_aad(601, 0);
+			start_aad(601, 0, true);
 			break;
 		case 297:
 			//_G(in)->_hotkey = 1;
@@ -255,12 +253,12 @@ bool VideoPlayer::handleCustom(uint num, uint frame, CfoDecoder *cfoDecoder) {
 		break;
 	case FCUT_078: {
 		// Room64::cut_sev
-		const int16 spr_nr = _G(chewy_ph)[_G(spieler_vector)[P_CHEWY].Phase * 8 + _G(spieler_vector)[P_CHEWY].PhNr];
-		const int16 x = _G(spieler_mi)[P_CHEWY].XyzStart[0] + _G(chewy_kor)[spr_nr * 2] - scrollx;
-		const int16 y = _G(spieler_mi)[P_CHEWY].XyzStart[1] + _G(chewy_kor)[spr_nr * 2 + 1] - scrolly;
+		const int16 spr_nr = _G(chewy_ph)[_G(moveState)[P_CHEWY].Phase * 8 + _G(moveState)[P_CHEWY].PhNr];
+		const int16 x = _G(spieler_mi)[P_CHEWY].XyzStart[0] + _G(chewy)->correction[spr_nr * 2] - scrollx;
+		const int16 y = _G(spieler_mi)[P_CHEWY].XyzStart[1] + _G(chewy)->correction[spr_nr * 2 + 1] - scrolly;
 
-		calc_zoom(_G(spieler_mi)[P_CHEWY].XyzStart[1], (int16)_G(room)->_roomInfo->_zoomFactor, (int16)_G(room)->_roomInfo->_zoomFactor, &_G(spieler_vector)[P_CHEWY]);
-		_G(out)->scale_set(_G(chewy)->_image[spr_nr], x, y, _G(spieler_vector)[P_CHEWY].Xzoom, _G(spieler_vector)[P_CHEWY].Yzoom, _G(scr_width));
+		calc_zoom(_G(spieler_mi)[P_CHEWY].XyzStart[1], (int16)_G(room)->_roomInfo->_zoomFactor, (int16)_G(room)->_roomInfo->_zoomFactor, &_G(moveState)[P_CHEWY]);
+		_G(out)->scale_set(_G(chewy)->image[spr_nr], x, y, _G(moveState)[P_CHEWY].Xzoom, _G(moveState)[P_CHEWY].Yzoom, _G(scr_width));
 		}
 		break;
 	case FCUT_083:
@@ -293,7 +291,7 @@ bool VideoPlayer::handleCustom(uint num, uint frame, CfoDecoder *cfoDecoder) {
 			cfoDecoder->rewind();
 			_playCount++;
 		}
-		return (_G(in)->getSwitchCode() == 1) ? false : true;
+		return (g_events->getSwitchCode() == Common::KEYCODE_ESCAPE) ? false : true;
 	case FCUT_116:
 		if (cfoDecoder->endOfVideo() && _playCount < 6) {
 			cfoDecoder->rewind();

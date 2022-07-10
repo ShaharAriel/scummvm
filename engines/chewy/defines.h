@@ -68,7 +68,6 @@ enum SetupScreenMode {
 #define CUR_INVENT 5
 #define CUR_NO_WALK 6
 #define CUR_NOPE 7
-#define CUR_AK_INVENT 8
 #define CUR_NO_USE 10
 #define CUR_NO_LOOK 11
 #define CUR_NO_TALK 12
@@ -80,9 +79,9 @@ enum SetupScreenMode {
 
 #define CUR_DISK 18
 #define CUR_HOWARD 19
-#define CUR_ZEIGE 20
+#define CUR_POINT 20
 #define CUR_NICHELLE 21
-#define CUR_22 22
+#define CUR_BLASTER 22
 #define EXIT_LEFT_SPR 26
 #define EXIT_RIGHT_SPR 27
 #define EXIT_ABOVE_SPR 28
@@ -100,7 +99,7 @@ enum SetupScreenMode {
 #define WIN_INF_Y 15
 #define WIN_LOOK_X 30
 #define WIN_LOOK_Y 150
-#define PFEIL_UP 26
+#define ARROW_UP 26
 #define INVENTORY_HOTSPOTS_COUNT 8
 #define HOT_LOOK_NR 2
 #define MES_RAHMEN 1
@@ -291,7 +290,7 @@ enum SetupScreenMode {
 #define PILLOW_INV 0
 #define SLIME_INV 1
 #define RED_CARD_INV 2
-#define KABEL_INV 3
+#define CABLE_INV 3
 #define MONOCLE_INV 4
 #define NOTEBOOK_INV 5
 #define NOTEBOOK_OPEN_INV 6
@@ -322,7 +321,7 @@ enum SetupScreenMode {
 #define TRICHTER_INV 31
 #define ANGEL_INV 32
 #define MILCH_INV 33
-#define MESSER_INV 34
+#define KNIFE_INV 34
 #define PUMPE_INV 35
 #define CENT_INV 36
 #define ANGEL2_INV 37
@@ -376,10 +375,10 @@ enum SetupScreenMode {
 #define ASCHE_INV 85
 #define PIRANHA_INV 86
 #define SCHALL_INV 87
-#define ARTE_INV 88
+#define ARTIFACT_INV 88
 #define GALA_INV 89
-#define PAPAGEI_INV 90
-#define BAR_GUT_INV 91
+#define PARROT_INV 90
+#define DRINK_COUPON_INV 91
 #define CLINT_500_INV 92
 #define CLINT_1500_INV 93
 #define CLINT_3000_INV 94
@@ -405,7 +404,6 @@ enum SetupScreenMode {
 #define AUTO_OBJ4 4
 #define MAX_OBJ_MOV 3
 
-#define ROOM_ATS_MAX 1000
 #define INV_USE_ATS_MAX 500
 #define ATS_ACTION_VOR 0
 #define ATS_ACTION_NACH 1
@@ -576,7 +574,7 @@ enum SetupScreenMode {
 #define EXIT_RIGHT 2
 #define EXIT_TOP 3
 #define EXIT_BOTTOM 4
-#define WAIT_TASTE_LOS while (_G(in)->getSwitchCode() != 0 \
+#define WAIT_TASTE_LOS while (g_events->getSwitchCode() != -1 \
 	&& !SHOULD_QUIT) { g_events->update(); }
 
 } // namespace Chewy

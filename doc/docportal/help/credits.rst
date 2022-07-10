@@ -296,6 +296,12 @@ Chewy
 .. list-table::
    :widths: 35 65
 
+   * - Paul Gilbert
+     -
+   * - Eugene Sandulenko
+     -
+   * - Arnaud Boutonné
+     -
    * - Filippos Karapetis
      -
 
@@ -468,6 +474,8 @@ Glk
      - ScottFree interpreter
    * - Michael J. Roberts
      - TADS interpreter
+   * - Avijeet Maurya
+     - Scott Sub-engine
 
 Gnap
 ^^^^
@@ -760,6 +768,15 @@ Mortevielle
    * - Arnaud Boutonné
      -
    * - Paul Gilbert
+     -
+
+mTropolis
+^^^^^^^^^
+
+.. list-table::
+   :widths: 35 65
+
+   * - Eric Lasota
      -
 
 MutationOfJB
@@ -1580,6 +1597,15 @@ Tizen / BADA
    * - Chris Warren-Smith
      -
 
+Webassembly / Emscripten
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. list-table::
+   :widths: 35 65
+
+   * - Christian Kündig
+     -
+
 WebOS
 ^^^^^
 
@@ -2242,6 +2268,41 @@ Websites (design)
      - SVG logo conversion
    * - Raina
      - ScummVM forum buttons
+
+Icons pack
+**********
+
+.. list-table::
+   :widths: 35 65
+
+   * - David Calvert
+     -
+   * - Eugene Sandulenko
+     -
+   * - J Moretti
+     -
+   * - Jennifer McMurray
+     -
+   * - Lothar Serra Mari
+     -
+   * - Oleg Ermakov
+     -
+   * - Olly Dean
+     -
+   * - Stefan Philippsen
+     -
+   * - Canuma
+     -
+   * - SupSuper
+     -
+   * - Thunderforge
+     -
+   * - neuromancer
+     -
+   * - nightm4re94
+     -
+   * - trembyle
+     -
 
 Code contributions
 ******************

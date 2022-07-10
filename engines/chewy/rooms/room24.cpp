@@ -43,8 +43,12 @@ void Room24::entry() {
 	setPersonPos(0, 0, P_CHEWY, -1);
 	_G(gameState).scrollx = 0;
 	_G(gameState).scrolly = 0;
-	_G(curblk).sprite = _G(room_blk)._detImage;
+
+	// TODO: There are 4 cursor frames here, but we only support
+	// a single custom cursor frame
+	_G(cur)->setCustomRoomCursor(_G(room_blk)._detImage[7]);
 	_G(cur)->setAnimation(7, 10, -1);
+
 	_G(menu_item) = CUR_USER;
 	cursorChoice(CUR_USER);
 
@@ -88,16 +92,16 @@ void Room24::use_hebel(int16 txt_nr) {
 
 	if (_G(gameState).R24Hebel[0] == 1 && _G(gameState).R24Hebel[1] == 0 && _G(gameState).R24Hebel[2] == 2) {
 		_G(gameState).R16F5Exit = true;
-		g_engine->_sound->playSound(1, 0);
-		g_engine->_sound->stopSound(1);
+		_G(det)->playSound(1, 0);
+		_G(det)->stopSound(1);
 		_G(det)->startDetail(1, 1, ANI_FRONT);
 		_G(det)->showStaticSpr(10);
 		_G(atds)->set_ats_str(164, TXT_MARK_NAME, 1, ATS_DATA);
 
 	} else if (_G(gameState).R16F5Exit) {
 		_G(det)->hideStaticSpr(10);
-		g_engine->_sound->playSound(1, 1);
-		g_engine->_sound->stopSound(0);
+		_G(det)->playSound(1, 1);
+		_G(det)->stopSound(0);
 		_G(det)->startDetail(1, 1, ANI_BACK);
 		_G(gameState).R16F5Exit = false;
 		_G(atds)->set_ats_str(164, TXT_MARK_NAME, 0, ATS_DATA);
@@ -130,8 +134,8 @@ void Room24::calc_animation(int16 kristall_nr) {
 
 		if (KRISTALL_SPR[kristall_nr][_G(gameState).R24Hebel[kristall_nr]] == 20) {
 			int16 ani_nr = _G(gameState).R24KristallLast[kristall_nr] == 13 ? 7 : 8;
-			g_engine->_sound->playSound(ani_nr + kristall_nr * 4, 0);
-			g_engine->_sound->stopSound(0);
+			_G(det)->playSound(ani_nr + kristall_nr * 4, 0);
+			_G(det)->stopSound(0);
 			_G(det)->hideStaticSpr(_G(gameState).R24KristallLast[kristall_nr] + kristall_nr * 2);
 			startSetAILWait(ani_nr + kristall_nr * 4, 1, ANI_BACK);
 			startSetAILWait(6 + kristall_nr * 4, 1, ANI_BACK);
@@ -139,9 +143,9 @@ void Room24::calc_animation(int16 kristall_nr) {
 
 		} else if (_G(gameState).R24KristallLast[kristall_nr] == 20) {
 			int16 ani_nr = KRISTALL_SPR[kristall_nr][_G(gameState).R24Hebel[kristall_nr]] == 13 ? 7 : 8;
-			g_engine->_sound->stopSound(0);
-			g_engine->_sound->playSound(5 + ani_nr + kristall_nr * 4, 0);
-			_G(det)->stop_detail(5 + kristall_nr * 4);
+			_G(det)->stopSound(0);
+			_G(det)->playSound(5 + ani_nr + kristall_nr * 4, 0);
+			_G(det)->stopDetail(5 + kristall_nr * 4);
 			startSetAILWait(6 + kristall_nr * 4, 1, ANI_FRONT);
 			startSetAILWait(ani_nr + kristall_nr * 4, 1, ANI_FRONT);
 		}

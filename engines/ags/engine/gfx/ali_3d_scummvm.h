@@ -59,6 +59,8 @@ enum RendererFlip {
 
 class ALSoftwareBitmap : public BaseDDB {
 public:
+	uint32_t GetRefID() const override { return UINT32_MAX /* not supported */; }
+
 	int  GetAlpha() const override {
 		return _alpha;
 	}
@@ -107,13 +109,7 @@ public:
 		return _stretchToHeight;
 	}
 
-	void Dispose() {
-		// do we want to free the bitmap?
-	}
-
-	~ALSoftwareBitmap() override {
-		Dispose();
-	}
+	~ALSoftwareBitmap() override = default;
 };
 
 
@@ -183,13 +179,26 @@ public:
 	void UpdateDDBFromBitmap(IDriverDependantBitmap *ddb, Bitmap *bitmap, bool hasAlpha) override;
 	void DestroyDDB(IDriverDependantBitmap *ddb) override;
 
+	IDriverDependantBitmap *GetSharedDDB(uint32_t /*sprite_id*/,
+		Bitmap *bitmap, bool hasAlpha, bool opaque) override {
+		// Software renderer does not require a texture cache, because it uses bitmaps directly
+		return CreateDDBFromBitmap(bitmap, hasAlpha, opaque);
+	}
+
+	void UpdateSharedDDB(uint32_t /*sprite_id*/, Bitmap */*bitmap*/, bool /*hasAlpha*/, bool /*opaque*/) override {
+		/* do nothing */
+	}
+	void ClearSharedDDB(uint32_t /*sprite_id*/) override {
+		/* do nothing */
+	}
+
 	void DrawSprite(int x, int y, IDriverDependantBitmap *ddb) override;
 	void SetScreenFade(int red, int green, int blue) override;
 	void SetScreenTint(int red, int green, int blue) override;
 
 	void RenderToBackBuffer() override;
 	void Render() override;
-	void Render(int xoff, int yoff, GlobalFlipType flip) override;
+	void Render(int xoff, int yoff, Shared::GraphicFlip flip) override;
 	bool GetCopyOfScreenIntoBitmap(Bitmap *destination, bool at_native_res, GraphicResolution *want_fmt) override;
 	void FadeOut(int speed, int targetColourRed, int targetColourGreen, int targetColourBlue) override;
 	void FadeIn(int speed, PALETTE pal, int targetColourRed, int targetColourGreen, int targetColourBlue) override;
@@ -197,8 +206,8 @@ public:
 	bool SupportsGammaControl() override;
 	void SetGamma(int newGamma) override;
 	void UseSmoothScaling(bool /*enabled*/) override {}
-	void EnableVsyncBeforeRender(bool /*enabled*/) override {}
-	void Vsync() override;
+	bool DoesSupportVsyncToggle() override;
+	bool SetVsync(bool enabled) override;
 	void RenderSpritesAtScreenResolution(bool /*enabled*/, int /*supersampling*/) override {}
 	bool RequiresFullRedrawEachFrame() override {
 		return false;

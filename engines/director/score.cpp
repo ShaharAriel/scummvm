@@ -256,13 +256,15 @@ void Score::startPlay() {
 	_playState = kPlayStarted;
 	_nextFrameTime = 0;
 
-	_lastPalette = _movie->getCast()->_defaultPalette;
-	_vm->setPalette(resolvePaletteId(_lastPalette));
-
 	if (_frames.size() <= 1) {	// We added one empty sprite
 		warning("Score::startLoop(): Movie has no frames");
 		_playState = kPlayStopped;
+
+		return;
 	}
+
+	_lastPalette = _frames[_currentFrame]->_palette.paletteId;
+	_vm->setPalette(resolvePaletteId(_lastPalette));
 
 	// All frames in the same movie have the same number of channels
 	if (_playState != kPlayStopped)
@@ -643,6 +645,15 @@ void Score::updateWidgets(bool hasVideoPlayback) {
 	}
 }
 
+void Score::invalidateRectsForMember(CastMember *member) {
+	for (uint16 i = 0; i < _channels.size(); i++) {
+		Channel *channel = _channels[i];
+		if (channel->_sprite->_cast == member) {
+			_window->addDirtyRect(channel->getBbox());
+		}
+	}
+}
+
 void Score::screenShot() {
 	Graphics::Surface rawSurface = _window->getSurface()->rawSurface();
 	const Graphics::PixelFormat requiredFormat_4byte(4, 8, 8, 8, 8, 0, 8, 16, 24);
@@ -729,13 +740,13 @@ Sprite *Score::getOriginalSpriteById(uint16 id) {
 	Frame *frame = _frames[_currentFrame];
 	if (id < frame->_sprites.size())
 		return frame->_sprites[id];
-	warning("Score::getOriginalSpriteById(%d): out of bounds", id);
+	warning("Score::getOriginalSpriteById(%d): out of bounds, >= %d", id, frame->_sprites.size());
 	return nullptr;
 }
 
 Channel *Score::getChannelById(uint16 id) {
 	if (id >= _channels.size()) {
-		warning("Score::getChannelById(%d): out of bounds", id);
+		warning("Score::getChannelById(%d): out of bounds, >= %d", id, _channels.size());
 		return nullptr;
 	}
 

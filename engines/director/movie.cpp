@@ -87,11 +87,14 @@ Movie::Movie(Window *window) {
 	_timeOutKeyDown = true;
 	_timeOutMouse = true;
 	_timeOutPlay = false;
+
+	_isBeepOn = false; // Beep is off by default in the original
 }
 
 Movie::~Movie() {
 	// _movieArchive is shared with the cast, so the cast will free it
 	delete _cast;
+
 	delete _sharedCast;
 	delete _score;
 }
@@ -147,8 +150,8 @@ bool Movie::loadArchive() {
 
 	// TODO: Add more options for desktop dimensions
 	if (_window == _vm->getStage()) {
-		uint16 windowWidth = debugChannelSet(-1, kDebugDesktop) ? 1024 : _movieRect.width();
-		uint16 windowHeight = debugChannelSet(-1, kDebugDesktop) ? 768 : _movieRect.height();
+		uint16 windowWidth = g_director->desktopEnabled() ? g_director->_wmWidth : _movieRect.width();
+		uint16 windowHeight = g_director->desktopEnabled() ? g_director->_wmHeight : _movieRect.height();
 		if (_vm->_wm->_screenDims.width() != windowWidth || _vm->_wm->_screenDims.height() != windowHeight) {
 			_vm->_wm->resizeScreen(windowWidth, windowHeight);
 			recenter = true;
@@ -157,7 +160,7 @@ bool Movie::loadArchive() {
 		}
 	}
 
-	if (recenter && debugChannelSet(-1, kDebugDesktop))
+	if (recenter && g_director->desktopEnabled())
 		_window->center(g_director->_centerStage);
 
 	_window->setStageColor(_stageColor, true);
@@ -316,6 +319,18 @@ CastMember *Movie::getCastMember(CastMemberID memberID) {
 	} else {
 		warning("Movie::getCastMember: Unknown castLib %d", memberID.castLib);
 	}
+	return result;
+}
+
+CastMember* Movie::createOrReplaceCastMember(CastMemberID memberID, CastMember* cast) {
+	CastMember *result = nullptr;
+
+	if (memberID.castLib == 0) {
+		result = _cast->setCastMember(memberID, cast);
+	} else if (memberID.castLib == 1) {
+		result = _sharedCast->setCastMember(memberID, cast);
+	}
+
 	return result;
 }
 

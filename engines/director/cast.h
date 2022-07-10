@@ -50,7 +50,7 @@ typedef Common::HashMap<byte, byte> CharMap;
 typedef Common::HashMap<uint16, uint16> FontSizeMap;
 struct FontXPlatformInfo {
 	Common::String toFont;
-		bool remapChars;
+	bool remapChars;
 	FontSizeMap sizeMap;
 
 	FontXPlatformInfo() : remapChars(false) {}
@@ -65,6 +65,12 @@ struct FontMapEntry {
 	FontMapEntry() : toFont(0), remapChars(false) {}
 };
 typedef Common::HashMap<uint16, FontMapEntry *> FontMap;
+
+#define NUMTILEPATTERNS 8
+struct TilePatternEntry {
+	CastMemberID bitmapId;
+	Common::Rect rect;
+};
 
 class Cast {
 public:
@@ -91,6 +97,7 @@ public:
 	void copyCastStxts();
 	Common::Rect getCastMemberInitialRect(int castId);
 	void setCastMemberModified(int castId);
+	CastMember *setCastMember(CastMemberID castId, CastMember *cast);
 	CastMember *getCastMember(int castId);
 	CastMember *getCastMemberByName(const Common::String &name);
 	CastMember *getCastMemberByScriptId(int scriptId);
@@ -114,6 +121,7 @@ private:
 	void loadFontMapV4(Common::SeekableReadStreamEndian &stream);
 	void loadFXmp(Common::SeekableReadStreamEndian &stream);
 	bool readFXmpLine(Common::SeekableReadStreamEndian &stream);
+	void loadVWTL(Common::SeekableReadStreamEndian &stream);
 
 public:
 	Archive *_castArchive;
@@ -135,6 +143,7 @@ public:
 	Common::Rect _movieRect;
 	uint16 _stageColor;
 	int _defaultPalette;
+	TilePatternEntry _tiles[kNumBuiltinTiles];
 
 	LingoArchive *_lingoArchive;
 

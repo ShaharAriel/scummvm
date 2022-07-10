@@ -253,16 +253,30 @@ Common::String OSystem_Win32::getSystemLanguage() const {
 	return OSystem_SDL::getSystemLanguage();
 }
 
+Common::String OSystem_Win32::getDefaultIconsPath() {
+	TCHAR iconsPath[MAX_PATH];
+
+	if (_isPortable) {
+		Win32::getProcessDirectory(iconsPath, MAX_PATH);
+		_tcscat(iconsPath, TEXT("\\Icons\\"));
+	} else {
+		// Use the Application Data directory of the user profile
+		if (!Win32::getApplicationDataDirectory(iconsPath)) {
+			return Common::String();
+		}
+		_tcscat(iconsPath, TEXT("\\ScummVM\\Icons"));
+		CreateDirectory(iconsPath, nullptr);
+	}
+
+	return Win32::tcharToString(iconsPath);
+}
+
 Common::String OSystem_Win32::getScreenshotsPath() {
 	// If the user has configured a screenshots path, use it
-	Common::String screenshotsPath = OSystem_SDL::getScreenshotsPath();
+	Common::String screenshotsPath = ConfMan.get("screenshotpath");
 	if (!screenshotsPath.empty()) {
-		// OSystem_SDL may have appended a '/' at the end
-		if (screenshotsPath.hasSuffix("/")) {
-			screenshotsPath.deleteLastChar();
-			if (!screenshotsPath.hasSuffix("\\") && !screenshotsPath.hasSuffix("/"))
-				screenshotsPath += "\\";
-		}
+		if (!screenshotsPath.hasSuffix("\\") && !screenshotsPath.hasSuffix("/"))
+			screenshotsPath += "\\";
 		return screenshotsPath;
 	}
 

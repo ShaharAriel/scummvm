@@ -147,9 +147,8 @@ void MidiDriver_Accolade_AdLib::deinitSource(uint8 source) {
 		if (_oplType != OPL::Config::kOpl3) {
 			// For OPL2, get the current music instrument for this OPL channel.
 			program = _controlData[0][channel].program;
-			if (_instrumentRemapping)
-				// Apply instrument remapping (if specified) to instrument channels.
-				program = _instrumentRemapping[program];
+			// Apply instrument remapping to instrument channels.
+			program = _instrumentRemapping[program];
 		}
 
 		InstrumentInfo instrument { };
@@ -252,6 +251,20 @@ void MidiDriver_Accolade_AdLib::setSfxNoteFraction(uint8 source, uint16 noteFrac
 
 void MidiDriver_Accolade_AdLib::updateSfxNote(uint8 source) {
 	writeFrequency(_channelAllocations[source][0]);
+}
+
+void MidiDriver_Accolade_AdLib::patchE1Instruments() {
+	// WORKAROUND One instrument in Elvira 1 has a very slow attack. This
+	// causes a problem in OPL3 mode (see patchWwInstruments for more details).
+	// This is fixed by shortening the attack and compensating by making the
+	// decay longer.
+
+	if (_oplType != OPL::Config::kOpl3)
+		// This workaround is only needed for OPL3 mode.
+		return;
+
+	// Patch the attack and decay of instrument 0x18.
+	_instrumentBank[0x18].operator0.decayAttack = 0x42; // Was 0x24
 }
 
 void MidiDriver_Accolade_AdLib::patchWwInstruments() {

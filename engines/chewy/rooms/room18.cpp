@@ -19,6 +19,7 @@
  *
  */
 
+#include "chewy/cursor.h"
 #include "chewy/defines.h"
 #include "chewy/events.h"
 #include "chewy/globals.h"
@@ -108,7 +109,7 @@ void Room18::entry() {
 		_G(det)->hideStaticSpr(19);
 	
 	if (_G(gameState).R17EnergieOut) {
-		_G(det)->stop_detail(0);
+		_G(det)->stopDetail(0);
 		_G(atds)->set_ats_str(150, TXT_MARK_LOOK, 1, ATS_DATA);
 	} else {
 		_G(atds)->set_ats_str(150, TXT_MARK_LOOK, 0, ATS_DATA);
@@ -191,7 +192,7 @@ void Room18::monitor() {
 		startAniBlock(2, ABLOCK21);
 		nr = (_G(gameState).R17EnergieOut) ? 2 : 1;
 	} else {
-		_G(det)->stop_detail(23);
+		_G(det)->stopDetail(23);
 		_G(atds)->set_ats_str(41, TXT_MARK_LOOK, 1, ATS_DATA);
 	}
 
@@ -201,7 +202,7 @@ void Room18::monitor() {
 int16 Room18::sonden_moni() {
 	int16 action_flag = false;
 
-	if (!_G(gameState).inv_cur && !_G(gameState).R18Gitter) {
+	if (!_G(cur)->usingInventoryCursor() && !_G(gameState).R18Gitter) {
 		action_flag = true;
 
 		hideCur();
@@ -230,7 +231,7 @@ int16 Room18::calc_surimy() {
 		action_flag = true;
 
 		hideCur();
-		delInventory(_G(gameState).AkInvent);
+		delInventory(_G(cur)->getInventoryCursor());
 		_G(gameState).R18SurimyWurf = true;
 		_G(det)->load_taf_seq(245, 50, nullptr);
 		_G(det)->load_taf_seq(116, 55, nullptr);
@@ -243,7 +244,7 @@ int16 Room18::calc_surimy() {
 		_G(auto_mov_vector)[SURIMY_OBJ].Delay = _G(gameState).DelaySpeed;
 		_G(auto_mov_obj)[SURIMY_OBJ].Mode = true;
 
-		if (_G(spieler_vector)[P_CHEWY].Xypos[1] < 150) {
+		if (_G(moveState)[P_CHEWY].Xypos[1] < 150) {
 			startDetailFrame(18, 1, ANI_FRONT, 8);
 
 			init_auto_obj(SURIMY_OBJ, &SURIMY_PHASEN[0][0], _G(mov_phasen)[SURIMY_OBJ].Lines, (const MovLine *)SURIMY_MPKT3);
@@ -262,8 +263,8 @@ int16 Room18::calc_surimy() {
 		_G(gameState)._personHide[P_CHEWY] = false;
 		wait_auto_obj(SURIMY_OBJ);
 
-		_G(det)->setSetailPos(21, 392, 170);
-		_G(det)->setSetailPos(22, 447, 154);
+		_G(det)->setDetailPos(21, 392, 170);
+		_G(det)->setDetailPos(22, 447, 154);
 		startDetailFrame(21, 1, ANI_FRONT, 14);
 		_G(det)->startDetail(22, 1, ANI_FRONT);
 		waitDetail(21);
@@ -288,8 +289,8 @@ int16 Room18::calc_surimy() {
 		auto_scroll(70, 0);
 		wait_auto_obj(SURIMY_OBJ);
 
-		_G(det)->setSetailPos(21, 143, 170);
-		_G(det)->setSetailPos(22, 198, 154);
+		_G(det)->setDetailPos(21, 143, 170);
+		_G(det)->setDetailPos(22, 198, 154);
 		startDetailFrame(21, 1, ANI_FRONT, 14);
 		_G(det)->startDetail(22, 1, ANI_FRONT);
 		waitDetail(21);
@@ -328,7 +329,7 @@ int16 Room18::calc_surimy() {
 int16 Room18::calc_schalter() {
 	int16 action_flag = false;
 
-	if (!_G(gameState).inv_cur && !_G(gameState).R18Gitter) {
+	if (!_G(cur)->usingInventoryCursor() && !_G(gameState).R18Gitter) {
 		action_flag = true;
 
 		hideCur();
@@ -343,7 +344,7 @@ int16 Room18::calc_schalter() {
 short Room18::use_cart_moni() {
 	int16 action_flag = false;
 
-	if (!_G(gameState).inv_cur) {
+	if (!_G(cur)->usingInventoryCursor()) {
 		action_flag = true;
 
 		hideCur();
@@ -377,7 +378,7 @@ short Room18::use_cart_moni() {
 int16 Room18::go_cyberspace() {
 	int16 action_flag = false;
 
-	if (!_G(gameState).inv_cur && !_G(gameState).R18Gitter) {
+	if (!_G(cur)->usingInventoryCursor() && !_G(gameState).R18Gitter) {
 		action_flag = true;
 
 		hideCur();
