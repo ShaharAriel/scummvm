@@ -40,7 +40,9 @@
 //		  as a resource) on 5dec96.
 
 
+#include <algorithm>
 #include "common/system.h"
+#include "common/unicode-bidi.h"
 #include "common/textconsole.h"
 
 #include "sword2/sword2.h"
@@ -271,6 +273,16 @@ byte *FontRenderer::buildTextSprite(const byte *sentence, uint32 fontRes, uint8 
 		// Center each line
 		byte *spritePtr = linePtr + (spriteWidth - line[i].width) / 2;
 
+
+        if (_vm->_isRTL) {
+
+            Common::String textLogical = Common::String((const char *)sentence + pos, (uint32)line[i].length);
+            if(!textLogical.find(".",0) && !textLogical.find("?",0) && !textLogical.find("!",0)){//text still not reversed
+                Common::String textString = Common::convertBiDiString(textLogical, Common::kWindows1255);
+                memcpy((char *)sentence + pos,textString.c_str(),line[i].length);
+            }
+
+        }
 		// copy the sprite for each character in this line to the
 		// text sprite and inc the sprite ptr by the character's
 		// width minus the 'overlap'
@@ -295,7 +307,7 @@ byte *FontRenderer::buildTextSprite(const byte *sentence, uint32 fontRes, uint8 
 		// Skip space at end of last word in this line
 		pos++;
 
-		if (Sword2Engine::isPsx())
+        if (Sword2Engine::isPsx())
 			linePtr += (char_height / 2 + _lineSpacing) * spriteWidth;
 		else
 			linePtr += (char_height + _lineSpacing) * spriteWidth;
