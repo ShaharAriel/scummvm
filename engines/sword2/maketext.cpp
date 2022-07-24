@@ -268,27 +268,22 @@ byte *FontRenderer::buildTextSprite(const byte *sentence, uint32 fontRes, uint8 
 	// Build the sprite, one line at a time
 
 	uint16 pos = 0;
-
 	for (i = 0; i < noOfLines; i++) {
 		// Center each line
 		byte *spritePtr = linePtr + (spriteWidth - line[i].width) / 2;
-
+		const byte *currTxtLine = sentence;
 
         if (_vm->_isRTL) {
-
             Common::String textLogical = Common::String((const char *)sentence + pos, (uint32)line[i].length);
-            if(!textLogical.find(".",0) && !textLogical.find("?",0) && !textLogical.find("!",0)){//text still not reversed
-                Common::String textString = Common::convertBiDiString(textLogical, Common::kWindows1255);
-                memcpy((char *)sentence + pos,textString.c_str(),line[i].length);
-            }
-
+            Common::String textString = Common::convertBiDiString(textLogical, Common::kWindows1255);
+            currTxtLine  = reinterpret_cast<const byte *>(textString.c_str());
         }
 		// copy the sprite for each character in this line to the
 		// text sprite and inc the sprite ptr by the character's
 		// width minus the 'overlap'
 
 		for (uint j = 0; j < line[i].length; j++) {
-			byte *charPtr = findChar(sentence[pos++], charSet);
+			byte *charPtr = findChar(*currTxtLine++, charSet);
 
 			frame_head.read(charPtr);
 
@@ -305,7 +300,7 @@ byte *FontRenderer::buildTextSprite(const byte *sentence, uint32 fontRes, uint8 
 		}
 
 		// Skip space at end of last word in this line
-		pos++;
+        sentence += line[i].length + 1;
 
         if (Sword2Engine::isPsx())
 			linePtr += (char_height / 2 + _lineSpacing) * spriteWidth;

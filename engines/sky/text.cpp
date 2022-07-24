@@ -314,7 +314,7 @@ DisplayedText Text::displayText(char *textPtr, uint8 *dest, bool center, uint16 
 
 	uint8 *curDest = dest +  sizeof(DataFileHeader); //point to where pixels start
 	byte *prevDest = curDest;
-	uint32 *centerTblPtr = centerTable;
+uint32 *centerTblPtr = centerTable;
 
 	do {
 		if (center) {

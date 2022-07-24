@@ -670,7 +670,7 @@ namespace {
 std::string unifyPath(const std::string &path) {
 	std::string result = path;
 	std::replace(result.begin(), result.end(), '\\', '/');
-	return result;
+    return result;
 }
 
 void removeTrailingSlash(std::string& path) {
