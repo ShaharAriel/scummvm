@@ -215,7 +215,7 @@ int16 atsAction(int16 txtNr, int16 txtMode, int16 mode) {
 						break;
 
 					case 114:
-						switchRoom(_G(gameState).R23GleiterExit);
+						switchRoom(_G(gameState).R23GliderExit);
 						break;
 
 					case 117:
@@ -260,7 +260,7 @@ int16 atsAction(int16 txtNr, int16 txtMode, int16 mode) {
 
 					case 149:
 					case 153:
-						retValue = Room18::calc_surimy();
+						retValue = Room18::calcSurimy();
 						break;
 
 					case 154:
@@ -272,7 +272,7 @@ int16 atsAction(int16 txtNr, int16 txtMode, int16 mode) {
 						break;
 
 					case 159:
-						retValue = Room18::calc_schalter();
+						retValue = Room18::calcMonitorControls();
 						break;
 
 					case 161:
@@ -303,7 +303,7 @@ int16 atsAction(int16 txtNr, int16 txtMode, int16 mode) {
 						break;
 
 					case 187:
-						retValue = Room25::use_gleiter();
+						retValue = Room25::useGlider();
 						break;
 
 					case 203:
@@ -323,7 +323,7 @@ int16 atsAction(int16 txtNr, int16 txtMode, int16 mode) {
 						break;
 
 					case 215:
-						retValue = Room29::use_schlauch();
+						retValue = Room29::useWaterHose();
 						break;
 
 					case 216:
@@ -331,11 +331,11 @@ int16 atsAction(int16 txtNr, int16 txtMode, int16 mode) {
 						break;
 
 					case 218:
-						retValue = Room29::get_schlauch();
+						retValue = Room29::getWaterHose();
 						break;
 
 					case 219:
-						retValue = Room25::gleiter_loesch();
+						retValue = Room25::extinguishGliderFlames();
 						break;
 
 					case 220:
@@ -383,15 +383,15 @@ int16 atsAction(int16 txtNr, int16 txtMode, int16 mode) {
 						break;
 
 					case 249:
-						retValue = Room37::use_wippe();
+						retValue = Room37::useSeesaw();
 						break;
 
 					case 251:
-						Room37::use_hahn();
+						Room37::useRooster();
 						break;
 
 					case 256:
-						retValue = Room37::use_glas();
+						retValue = Room37::useGlass();
 						break;
 
 					case 263:
@@ -785,7 +785,7 @@ int16 atsAction(int16 txtNr, int16 txtMode, int16 mode) {
 						break;
 
 					case 114:
-						switchRoom(_G(gameState).R23GleiterExit);
+						switchRoom(_G(gameState).R23GliderExit);
 						break;
 
 					case 227:
@@ -854,7 +854,7 @@ int16 atsAction(int16 txtNr, int16 txtMode, int16 mode) {
 						break;
 
 					case 251:
-						Room37::talk_hahn();
+						Room37::talkWithRooster();
 						break;
 
 					case 265:
@@ -2155,11 +2155,11 @@ void atdsStringStart(int16 diaNr, int16 strNr, int16 personNr, int16 mode) {
 #undef START_STOP
 #undef START_STOP_TMP
 
-void calc_inv_use_txt(int16 test_nr) {
+void useItemWithInvItem(int16 itemId) {
 	int scrollx, scrolly;
 	int16 ret;
 
-	switch (test_nr) {
+	switch (itemId) {
 	case NOTEBOOK_OPEN_INV:
 	case MONOCLE_INV:
 		scrollx = _G(gameState).scrollx;
@@ -2176,10 +2176,11 @@ void calc_inv_use_txt(int16 test_nr) {
 			g_events->update();
 			SHOULD_QUIT_RETURN;
 		}
-		while (g_events->getSwitchCode() != Common::KEYCODE_INVALID) {
-			g_events->update();
-			SHOULD_QUIT_RETURN;
-		}
+
+		EVENTS_CLEAR;
+		g_events->_kbInfo._scanCode = Common::KEYCODE_INVALID;
+		g_events->_kbInfo._keyCode = '\0';
+		_G(minfo).button = 0;
 
 		_G(room)->load_tgp(_G(gameState)._personRoomNr[P_CHEWY], &_G(room_blk), EPISODE1_TGP, true, EPISODE1);
 
@@ -2187,20 +2188,20 @@ void calc_inv_use_txt(int16 test_nr) {
 		_G(gameState).scrolly = scrolly;
 		break;
 
-	case ANGEL_INV:
-	case KNOCHEN_INV:
+	case FISHINGROD_INV:
+	case BONE_INV:
 		delInventory(_G(cur)->getInventoryCursor());
 		_G(menu_item) = CUR_USE;
 		cursorChoice(_G(menu_item));
-		ret = del_invent_slot(test_nr);
-		_G(gameState).InventSlot[ret] = ANGEL2_INV;
-		_G(obj)->changeInventory(test_nr, ANGEL2_INV, &_G(room_blk));
+		ret = del_invent_slot(itemId);
+		_G(gameState).InventSlot[ret] = FISHING_ROD_INV;
+		_G(obj)->changeInventory(itemId, FISHING_ROD_INV, &_G(room_blk));
 		break;
 
-	case KUERBIS1_INV:
-		ret = del_invent_slot(KUERBIS1_INV);
+	case PUMPKIN_INV:
+		ret = del_invent_slot(PUMPKIN_INV);
 		_G(gameState).InventSlot[ret] = K_MASKE_INV;
-		_G(obj)->changeInventory(KUERBIS1_INV, K_MASKE_INV, &_G(room_blk));
+		_G(obj)->changeInventory(PUMPKIN_INV, K_MASKE_INV, &_G(room_blk));
 		invent_2_slot(K_FLEISCH_INV);
 		invent_2_slot(K_KERNE_INV);
 		break;
@@ -2219,25 +2220,25 @@ void calc_inv_use_txt(int16 test_nr) {
 		}
 		break;
 
-	case BRIEF_INV:
+	case LETTER_INV:
 		delInventory(_G(cur)->getInventoryCursor());
 		_G(menu_item) = CUR_USE;
 		cursorChoice(_G(menu_item));
-		_G(gameState).R42BriefMarke = true;
-		ret = del_invent_slot(BRIEF_INV);
-		_G(gameState).InventSlot[ret] = BRIEF2_INV;
-		_G(obj)->changeInventory(BRIEF_INV, BRIEF2_INV, &_G(room_blk));
+		_G(gameState).R42LetterStamped = true;
+		ret = del_invent_slot(LETTER_INV);
+		_G(gameState).InventSlot[ret] = STAMPEDLETTER_INV;
+		_G(obj)->changeInventory(LETTER_INV, STAMPEDLETTER_INV, &_G(room_blk));
 		break;
 
-	case FLASCHE_INV:
+	case BOTTLE_INV:
 		delInventory(_G(cur)->getInventoryCursor());
 		_G(menu_item) = CUR_USE;
 		cursorChoice(_G(menu_item));
 		// fall through
 
-	case WOLLE_INV:
-		remove_inventory(WOLLE_INV);
-		_G(atds)->set_ats_str(FLASCHE_INV, 1, INV_ATS_DATA);
+	case WOOL_INV:
+		remove_inventory(WOOL_INV);
+		_G(atds)->set_ats_str(BOTTLE_INV, 1, INV_ATS_DATA);
 		_G(gameState).R56WhiskyMix = true;
 		break;
 
@@ -2246,9 +2247,9 @@ void calc_inv_use_txt(int16 test_nr) {
 		delInventory(_G(cur)->getInventoryCursor());
 		_G(menu_item) = CUR_USE;
 		cursorChoice(_G(menu_item));
-		ret = del_invent_slot(test_nr);
+		ret = del_invent_slot(itemId);
 		_G(gameState).InventSlot[ret] = B_MARY2_INV;
-		_G(obj)->changeInventory(test_nr, B_MARY2_INV, &_G(room_blk));
+		_G(obj)->changeInventory(itemId, B_MARY2_INV, &_G(room_blk));
 		break;
 
 	case 13:
@@ -2272,7 +2273,7 @@ void calc_inv_use_txt(int16 test_nr) {
 		_G(menu_item) = CUR_USE;
 		cursorChoice(CUR_USE);
 
-		ret = del_invent_slot(test_nr);
+		ret = del_invent_slot(itemId);
 		_G(gameState).InventSlot[ret] = 110;
 		_G(obj)->changeInventory(104, 110, &_G(room_blk));
 		break;
@@ -2406,7 +2407,7 @@ int16 calc_person_txt(int16 p_nr) {
 				break;
 
 			case 42:
-				if (!_G(gameState).R42MarkeOk && !_G(gameState).R42HoToBeamter) {
+				if (!_G(gameState).R42StampOk && !_G(gameState).R42HoToBeamter) {
 					_G(menu_item) = CUR_HOWARD;
 					cursorChoice(_G(menu_item));
 					txt_nr = 30000;
@@ -2749,7 +2750,6 @@ void calc_person_dia(int16 p_nr) {
 			showCur();
 		} else {
 			_G(room_blk).AadLoad = false;
-			_G(room_blk).AtsLoad = false;
 			_G(gameState).PersonDiaTmpRoom[p_nr] = _G(gameState)._personRoomNr[P_CHEWY];
 			save_person_rnr();
 

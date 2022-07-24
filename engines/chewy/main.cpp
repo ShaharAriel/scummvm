@@ -197,6 +197,8 @@ bool mainLoop(int16 mode) {
 	if (_G(flags).MainInput) {
 		switch (g_events->_kbInfo._scanCode) {
 		case Common::KEYCODE_F1:
+			if (_G(cur)->usingInventoryCursor())
+				invent_2_slot(_G(cur)->getInventoryCursor());
 			_G(cur)->setInventoryCursor(-1);
 			_G(menu_item) = CUR_WALK;
 			_G(cur)->showCursor();
@@ -206,6 +208,8 @@ bool mainLoop(int16 mode) {
 			break;
 
 		case Common::KEYCODE_F2:
+			if (_G(cur)->usingInventoryCursor())
+				invent_2_slot(_G(cur)->getInventoryCursor());
 			_G(cur)->setInventoryCursor(-1);
 			_G(menu_item) = CUR_USE;
 			_G(cur)->showCursor();
@@ -215,6 +219,8 @@ bool mainLoop(int16 mode) {
 			break;
 
 		case Common::KEYCODE_F3:
+			if (_G(cur)->usingInventoryCursor())
+				invent_2_slot(_G(cur)->getInventoryCursor());
 			_G(cur)->setInventoryCursor(-1);
 			_G(menu_item) = CUR_LOOK;
 			_G(cur)->showCursor();
@@ -224,6 +230,8 @@ bool mainLoop(int16 mode) {
 			break;
 
 		case Common::KEYCODE_F4:
+			if (_G(cur)->usingInventoryCursor())
+				invent_2_slot(_G(cur)->getInventoryCursor());
 			_G(cur)->setInventoryCursor(-1);
 			_G(menu_item) = CUR_TALK;
 			_G(cur)->showCursor();
@@ -261,8 +269,11 @@ bool mainLoop(int16 mode) {
 
 			_G(out)->setPointer((byte *)g_screen->getPixels());
 			_G(fontMgr)->setFont(_G(font6));
+			if (_G(cur)->usingInventoryCursor())
+				invent_2_slot(_G(cur)->getInventoryCursor());
+			_G(cur)->setInventoryCursor(-1);
 			cursorChoice(CUR_SAVE);
-			if (Dialogs::Files::execute(true) == 1) {
+			if (Dialogs::Files::execute(true)) {
 				retValue = true;
 				_G(fx_blend) = BLEND4;
 			}
@@ -321,6 +332,8 @@ bool mainLoop(int16 mode) {
 				_G(fontMgr)->setFont(_G(font6));
 
 				_G(out)->setPointer((byte *)g_screen->getPixels());
+				if (_G(cur)->usingInventoryCursor())
+					invent_2_slot(_G(cur)->getInventoryCursor());
 				cursorChoice(CUR_SAVE);
 				bool ret = Dialogs::Files::execute(true);
 				if (ret) {
@@ -329,11 +342,13 @@ bool mainLoop(int16 mode) {
 				}
 
 				_G(out)->setPointer(_G(workptr));
-				_G(menu_item) = _G(tmp_menu_item);
 				_G(menu_display) = MENU_HIDE;
 
-				if (!(_G(cur)->usingInventoryCursor() && _G(menu_item) == CUR_USE))
-					cursorChoice(_G(tmp_menu_item));
+				if (!_G(cur)->usingInventoryCursor()) {
+					_G(menu_item) = CUR_WALK;
+					cursorChoice(_G(menu_item));
+				} else
+					_G(menu_item) = CUR_USE;
 
 				_G(flags).SaveMenu = false;
 				_G(cur)->showCursor();
@@ -977,7 +992,7 @@ void evaluateObj(int16 objectId, int16 mode) {
 	case OBJECT_1:
 	case OBJECT_2:
 		if (mode == INVENTORY_NORMAL)
-			calc_inv_use_txt(objectId);
+			useItemWithInvItem(objectId);
 		break;
 
 	case NO_ACTION:

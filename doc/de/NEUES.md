@@ -20,11 +20,20 @@ Umfangreichere Informationen über die Änderungen des aktuellen Codes findest D
    - Unterstützung für die koreanische Version von Legend of Kyrandia 1 hinzugefügt.
    - Unterstützung für die hebräische Version von Legend of Kyrandia 3 hinzugefügt.
 
+ SCUMM:
+   - Unterstützung von CGA-, CGA Composite-, CGA schwarz/weiß- und Herkules-Grafikmodi
+     für die SCUMM 1-Versionen von Zak McKracken und Maniac Mansion hinzugefügt.
+   - Die Genauigkeit der CGA- und Hercules-Modi der SCUMM 2-Versionen von
+     Zak McKracken und Maniac Mansion wurde verbessert.
+   - Verbesserte Genauigkeit der Darstekkzbg von CGA- und Hercules-Grafikmodi
+     in der EGA-Version von Monkey Island 1 (die VGA-Version unterstützt weder CGA noch Hercules).
+   - Einige Grafik-Fehler im CGA-Modus von Loom wurden korrigiert.
+
  Toon:
    - Die Spiel-Menüs verhalten sich nun wie das Original.
 
 
-#### 2.6.0 (DD.MM.YYYY)
+#### 2.6.0 "Insane Escapism" (2022-08-01)
 
  Neue Spiele:
    - Unterstützung für Sanitarium hinzugefügt.

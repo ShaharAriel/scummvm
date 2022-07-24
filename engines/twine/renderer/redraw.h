@@ -51,7 +51,7 @@ struct OverlayListStruct {
 	int16 y = 0;
 	int16 info1 = 0; // text = actor | total coins
 	OverlayPosType posType = OverlayPosType::koNormal;
-	int16 lifeTime = 0;
+	int16 lifeTime = 0; // life time in ticks - see TO_SECONDS()
 };
 
 struct DrawListStruct {
@@ -65,10 +65,6 @@ struct DrawListStruct {
 	uint16 y = 0;
 	uint16 z = 0;
 	uint16 offset = 0;
-
-	uint16 field_C = 0;
-	uint16 field_E = 0;
-	uint16 field_10 = 0;
 
 	inline bool operator==(const DrawListStruct& other) const {
 		return posValue == other.posValue;
@@ -142,7 +138,7 @@ public:
 	bool _inSceneryView = false;
 
 	/** Request background redraw */
-	bool _reqBgRedraw = false;
+	bool _firstTime = false;
 
 	/** Current number of redraw regions in the screen */
 	int32 _currNumOfRedrawBox = 0; // fullRedrawVar8

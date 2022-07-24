@@ -1251,8 +1251,8 @@ void Menu::processInventoryMenu() {
 
 	if (_engine->_gameState->_inventoryNumLeafs > 0) {
 		_engine->_gameState->giveItem(InventoryItems::kiCloverLeaf);
-		// TODO: shouldn't this get reset? } else {
-		//	_engine->_gameState->removeItem(InventoryItems::kiCloverLeaf);
+	} else {
+		_engine->_gameState->removeItem(InventoryItems::kiCloverLeaf);
 	}
 
 	const int32 left = _engine->width() / 2 - 303;
@@ -1359,6 +1359,9 @@ void Menu::processInventoryMenu() {
 	_engine->_gameState->initEngineProjections();
 
 	_engine->_text->initSceneTextBank();
+
+	// this is a hack to 'fix' https://bugs.scummvm.org/ticket/13677
+	_engine->_input->toggleActionIfActive(TwinEActionType::RecenterScreenOnTwinsen);
 }
 
 } // namespace TwinE

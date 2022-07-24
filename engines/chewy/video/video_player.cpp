@@ -31,8 +31,8 @@
 
 namespace Chewy {
 
-bool VideoPlayer::playVideo(uint num, bool stopMusic) {
-	CfoDecoder *cfoDecoder = new CfoDecoder(g_engine->_sound);
+bool VideoPlayer::playVideo(uint num, bool stopMusic, bool disposeMusic) {
+	CfoDecoder *cfoDecoder = new CfoDecoder(g_engine->_sound, disposeMusic);
 	VideoResource *videoResource = new VideoResource("cut.tap");
 	Common::SeekableReadStream *videoStream = videoResource->getVideoStream(num);
 	_playCount = 0;
@@ -186,8 +186,8 @@ bool VideoPlayer::handleCustom(uint num, uint frame, CfoDecoder *cfoDecoder) {
 		break;
 	case FCUT_047:
 		// Room37::cut_serv1
-		if (!_G(gameState).R37Kloppe) {
-			if (!_G(gameState).R37Gebiss) {
+		if (!_G(gameState).R37RoosterFoughtWithDog) {
+			if (!_G(gameState).R37TakenDenturesFromGlass) {
 				_G(det)->plot_static_details(scrollx, scrolly, 9, 9);
 				_G(det)->plot_static_details(scrollx, scrolly, 11, 11);
 				_G(det)->showStaticSpr(11);
@@ -228,7 +228,7 @@ bool VideoPlayer::handleCustom(uint num, uint frame, CfoDecoder *cfoDecoder) {
 		// Room28::cut_serv2 (FCUT_055)
 		if (num != FCUT_055 || frame < 23) {
 			// Room28::cut_serv1 (FCUT_056 / FCUT_064)
-			if (_G(gameState).R28Briefkasten)
+			if (_G(gameState).R28LetterBox)
 				_G(det)->plot_static_details(0, 0, 8, 9);
 			else
 				_G(det)->plot_static_details(0, 0, 7, 7);

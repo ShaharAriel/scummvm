@@ -254,7 +254,12 @@ ScummEngine::ScummEngine(OSystem *syst, const DetectorResult &dr)
 			_renderMode = Common::kRenderDefault;
 		break;
 
+	case Common::kRenderCGA_BW:
 	case Common::kRenderCGAComp:
+		if (_game.version > 1 || _game.platform != Common::kPlatformDOS)
+			_renderMode = Common::kRenderDefault;
+		break;
+
 	case Common::kRenderCGA:
 	case Common::kRenderEGA:
 	case Common::kRenderAmiga:
@@ -317,10 +322,12 @@ ScummEngine::ScummEngine(OSystem *syst, const DetectorResult &dr)
 	else
 		_compositeBuf = nullptr;
 
-	if (_renderMode == Common::kRenderHercA || _renderMode == Common::kRenderHercG) {
-		_herculesBuf = (byte *)malloc(kHercWidth * kHercHeight);
-	}
-	updateColorTableV1(_renderMode);
+	if (_renderMode == Common::kRenderHercA || _renderMode == Common::kRenderHercG)
+		_hercCGAScaleBuf = (byte *)malloc(kHercWidth * kHercHeight);
+	else if (_renderMode == Common::kRenderCGA_BW)
+		_hercCGAScaleBuf = (byte *)malloc(_screenWidth * 2 * _screenHeight * 2);
+
+	setV1ColorTable(_renderMode);
 
 	_isRTL = (_language == Common::HE_ISR && _game.heversion == 0)
 			&& (_game.id == GID_MANIAC || (_game.version >= 4 && _game.version < 7));
@@ -387,9 +394,7 @@ ScummEngine::~ScummEngine() {
 	free(_arraySlot);
 
 	free(_compositeBuf);
-	free(_herculesBuf);
-	delete[] _ditheringTableV1;
-
+	free(_hercCGAScaleBuf);
 	free(_16BitPalette);
 
 	if (_macScreen) {
@@ -1115,6 +1120,8 @@ Common::Error ScummEngine::init() {
 	// Initialize backend
 	if (_renderMode == Common::kRenderHercA || _renderMode == Common::kRenderHercG) {
 		initGraphics(kHercWidth, kHercHeight);
+	} else if (_renderMode == Common::kRenderCGA_BW) {
+		initGraphics(_screenWidth * 2, _screenHeight * 2);
 	} else {
 		int screenWidth = _screenWidth;
 		int screenHeight = _screenHeight;
@@ -2673,6 +2680,27 @@ void ScummEngine_v5::scummLoop_handleSaveLoad() {
 	_loadFromLauncher = false;
 
 	ScummEngine::scummLoop_handleSaveLoad();
+
+	// WORKAROUND: MI1 post-load room palette fixes for games that were saved with a different
+	// render mode. The entry scripts apply custom fixes here, based on the VAR_VIDEOMODE
+	// var. Saving this state and then loading the savegame with a different render mode setting,
+	// will mess up the room palette. The original interpreter does not fix this, savegames
+	// from different videomodes are basically incompatible, at least until a scene comes up
+	// where the script might again apply the necessary fixes. Unfortunately, this workaround
+	// will also only work if the current room has a script with the correct fixes...
+	if (_game.id == GID_MONKEY_EGA && _videoModeChanged) {
+		_videoModeChanged = false;
+		// Reset everything that the former entry script might have
+		// done (based on the former VAR_VIDEOMODE).
+		for (int i = 0; i < ARRAYSIZE(_roomPalette); ++i)
+			_roomPalette[i] = i;
+		// We want just the ENCD script...
+		int entryScript = VAR_ENTRY_SCRIPT;
+		VAR_ENTRY_SCRIPT = 0xFF;
+		runEntryScript();
+		VAR_ENTRY_SCRIPT = entryScript;
+		warning("Loading savegame with a different render mode setting. Glitches might occur");
+	}
 
 	// update IQ points after loading
 	if (processIQPoints)

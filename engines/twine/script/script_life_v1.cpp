@@ -733,6 +733,13 @@ static int32 lMESSAGE(TwinEEngine *engine, LifeScriptContext &ctx) {
 	}
 	engine->_text->setFontCrossColor(ctx.actor->_talkColor);
 	engine->_scene->_talkingActor = ctx.actorIdx;
+
+	// if we are in sporty mode, we might have triggered a jump with the special action binding
+	// see https://bugs.scummvm.org/ticket/13676 for more details.
+	if (ctx.actor->isJumpAnimationActive()) {
+		engine->_animations->initAnim(AnimationTypes::kStanding, AnimType::kAnimationTypeLoop, AnimationTypes::kAnimInvalid, OWN_ACTOR_SCENE_INDEX);
+	}
+
 	engine->_text->drawTextProgressive(textIdx);
 	if (engine->_scene->_currentSceneIdx == LBA1SceneId::Principal_Island_Library && engine->_scene->_talkingActor == 8 && textIdx == TextId::kStarWarsFanBoy) {
 		engine->unlockAchievement("LBA_ACH_008");
@@ -1220,7 +1227,7 @@ static int32 lZOOM(TwinEEngine *engine, LifeScriptContext &ctx) {
 		engine->exitSceneryView();
 		engine->_screens->setBackPal();
 		engine->_screens->_fadePalette = true;
-		engine->_redraw->_reqBgRedraw = true;
+		engine->_redraw->_firstTime = true;
 	}
 
 	return 0;
@@ -1317,6 +1324,7 @@ static int32 lHIT_OBJ(TwinEEngine *engine, LifeScriptContext &ctx) {
  * @note Opcode @c 0x40
  */
 static int32 lPLAY_FLA(TwinEEngine *engine, LifeScriptContext &ctx) {
+	ScopedEngineFreeze timer(engine);
 	int strIdx = 0;
 	char movie[64];
 	do {
@@ -1333,7 +1341,7 @@ static int32 lPLAY_FLA(TwinEEngine *engine, LifeScriptContext &ctx) {
 
 	engine->_movie->playMovie(movie);
 	engine->setPalette(engine->_screens->_paletteRGBA);
-	engine->_screens->clearScreen();
+	engine->_redraw->_firstTime = true;
 
 	return 0;
 }

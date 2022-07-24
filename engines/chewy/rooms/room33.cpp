@@ -112,14 +112,14 @@ void Room33::use_maschine() {
 			switch (_G(cur)->getInventoryCursor()) {
 			case MILCH_INV:
 				_G(gameState).R33Munter[3] = true;
-				invent_2_slot(MILCH_LEER_INV);
+				invent_2_slot(EMPTY_MILK_BOTTLE_INV);
 				break;
 
 			case K_FLEISCH_INV:
 				_G(gameState).R33Munter[1] = true;
 				break;
 
-			case EIER_INV:
+			case EGGS_INV:
 				_G(gameState).R33Munter[2] = true;
 				break;
 

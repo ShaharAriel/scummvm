@@ -21,14 +21,19 @@ For a more comprehensive changelog of the latest experimental code, see:
    - Added support for the Hebrew version of Legend of Kyrandia 3.
 
  SCUMM:
-   - Add support for CGA, CGA Composite and Hercules modes for SCUMM 1
-     versions of Zak McKracken and Maniac Mansion.
+   - Added support for CGA, CGA Composite, CGA black & white and Hercules modes
+     for SCUMM 1 versions of Zak McKracken and Maniac Mansion.
+   - Improved accuracy of CGA and Hercules modes for SCUMM 2 (enhanced) versions of
+     Zak McKracken and Maniac Mansion.
+   - Improved accuracy of CGA and Hercules modes for Monkey Island 1 (EGA version
+     only - the VGA version does not have CGA and Hercules modes).
+   - Fixed some minor glitches for the CGA mode of Loom. 
 
  Toon:
    - Made game menus behave like in the original.
 
 
-#### 2.6.0 (2022-XX-XX)
+#### 2.6.0 "Insane Escapism" (2022-08-01)
 
  New games:
    - Added support for Sanitarium.

@@ -986,8 +986,16 @@ Common::Array<Channel> *FilmLoopCastMember::getSubChannels(Common::Rect &bbox, C
 		chan._height = height;
 
 		_subchannels.push_back(chan);
-		_subchannels[_subchannels.size() - 1].replaceWidget();
+
 	}
+	// Initialise the widgets on all of the subchannels.
+	// This has to be done once the list has been constructed, otherwise
+	// the list grow operation will erase the widgets as they aren't
+	// part of the Channel assignment constructor.
+	for (auto &iter : _subchannels) {
+		iter.replaceWidget();
+	}
+
 	return &_subchannels;
 }
 
@@ -1344,6 +1352,11 @@ void TextCastMember::importStxt(const Stxt *stxt) {
 	_fgpalinfo3 = stxt->_style.b;
 	_ftext = stxt->_ftext;
 	_ptext = stxt->_ptext;
+
+	// Rectifying _fontId in case of a fallback font
+	Graphics::MacFont *macFont = new Graphics::MacFont(_fontId, _fontSize, _textSlant);
+	g_director->_wm->_fontMan->getFont(macFont);
+	_fontId = macFont->getId();
 }
 
 Graphics::MacWidget *TextCastMember::createWidget(Common::Rect &bbox, Channel *channel, SpriteType spriteType) {

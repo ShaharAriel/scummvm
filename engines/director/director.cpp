@@ -85,13 +85,16 @@ DirectorEngine::DirectorEngine(OSystem *syst, const DirectorGameDescription *gam
 	_version = getDescriptionVersion();
 	_fixStageSize = false;
 	_fixStageRect = Common::Rect();
-	_wmMode = debugChannelSet(-1, kDebugDesktop) ? wmModeDesktop : wmModeFullscreen;
+	_wmMode = 0;
+
 	_wmWidth = 1024;
 	_wmHeight = 768;
 
 	_wm = nullptr;
 
 	_gameDataDir = Common::FSNode(ConfMan.get("path"));
+
+	SearchMan.addDirectory(_gameDataDir.getPath(), _gameDataDir, 0, 5);
 
 	for (uint i = 0; Director::directoryGlobs[i]; i++) {
 		Common::String directoryGlob = directoryGlobs[i];
@@ -124,8 +127,6 @@ DirectorEngine::DirectorEngine(OSystem *syst, const DirectorGameDescription *gam
 
 	_surface = nullptr;
 	_tickBaseline = 0;
-
-	gameQuirks(_gameDescription->desc.gameId, _gameDescription->desc.platform);
 }
 
 DirectorEngine::~DirectorEngine() {
@@ -176,11 +177,23 @@ Common::Error DirectorEngine::run() {
 
 	_currentPalette = nullptr;
 
+	//        we run mac-style menus     |   and we will redraw all widgets
+	_wmMode = Graphics::kWMModalMenuMode | Graphics::kWMModeManualDrawWidgets;
+
+	if (!debugChannelSet(-1, kDebugDesktop))
+		_wmMode |= Graphics::kWMModeFullscreen | Graphics::kWMModeNoDesktop;
+
 	if (debugChannelSet(-1, kDebug32bpp))
 		_wmMode |= Graphics::kWMMode32bpp;
 
 	_wm = new Graphics::MacWindowManager(_wmMode, &_director3QuickDrawPatterns, getLanguage());
 	_wm->setEngine(this);
+
+	gameQuirks(_gameDescription->desc.gameId, _gameDescription->desc.platform);
+
+	_wm->setDesktopMode(_wmMode);
+
+	_wm->printWMMode();
 
 	_pixelformat = _wm->_pixelformat;
 

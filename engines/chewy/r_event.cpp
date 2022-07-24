@@ -217,7 +217,7 @@ void enter_room(int16 eib_nr) {
 	case 17:
 		Room17::entry();
 		if (g_engine->_sound->soundEnabled()) {
-			if (!_G(gameState).R17EnergieOut)
+			if (!_G(gameState).R17EnergyOut)
 				_G(det)->playSound(15, 0);
 		}
 		break;
@@ -340,7 +340,7 @@ void exit_room(int16 eib_nr) {
 			_G(gameState).R17Location = 3;
 		_G(gameState).ScrollxStep = 1;
 		_G(flags).NoScroll = false;
-		_G(gameState).R18Gitter = false;
+		_G(gameState).R18Grid = false;
 		_G(gameState).room_e_obj[50].Attribut = 255;
 		_G(gameState).room_e_obj[41].Attribut = EXIT_BOTTOM;
 		break;
@@ -363,13 +363,13 @@ void exit_room(int16 eib_nr) {
 
 	case 23:
 		_G(gameState)._personHide[P_CHEWY] = false;
-		switch (_G(gameState).R23GleiterExit) {
+		switch (_G(gameState).R23GliderExit) {
 		case 16:
 			setPersonPos(126, 110, P_CHEWY, P_RIGHT);
 			break;
 
 		case 25:
-			_G(gameState).R25GleiterExit = true;
+			_G(gameState).R25GliderExit = true;
 			break;
 
 		default:
@@ -714,16 +714,17 @@ void flic_cut(int16 nr) {
 
 	switch (nr) {
 	case FCUT_SPACECHASE_18:
-		// _G(sndPlayer)->setLoopMode(1)
+		// Play the space chase video, after escaping F5.
+		// The music is placed in the first video of the
+		// series, so we need to keep a copy of it and
+		// dispose it after the series of videos ends.
 		for (i = 0; i < 11 && keepPlaying; i++) {
-			keepPlaying = g_engine->_video->playVideo(FCUT_SPACECHASE_18 + i);
+			keepPlaying = g_engine->_video->playVideo(FCUT_SPACECHASE_18 + i, false, false);
 		}
 
-		// TODO: Reimplement
-		//_G(sndPlayer)->fadeOut(0);
+		g_engine->_sound->stopMusic();
 		_G(out)->fadeOut();
 		_G(out)->cls();
-		//while (_G(sndPlayer)->musicPlaying()) {}
 		break;
 
 	case FCUT_058:
@@ -1045,9 +1046,9 @@ int16 sib_event_no_inv(int16 sib_nr) {
 
 	case SIB_CART_FACH_R18:
 		start_spz_wait(CH_LGET_O, 1, false, P_CHEWY);
-		_G(gameState).R18CartFach = 0;
+		_G(gameState).R18CartridgeInSlot = false;
 		cur_2_inventory();
-		_G(atds)->set_ats_str(157, 1, AAD_DATA);
+		_G(atds)->set_ats_str(157, TXT_MARK_LOOK, 0, ATS_DATA);
 		break;
 
 	case SIB_SCHLAUCH_R26:
@@ -1265,7 +1266,7 @@ void sib_event_inv(int16 sib_nr) {
 
 	case SIB_CART_FACH_R18:
 		start_spz_wait(CH_LGET_O, 1, false, P_CHEWY);
-		_G(gameState).R18CartFach = true;
+		_G(gameState).R18CartridgeInSlot = true;
 		delInventory(_G(cur)->getInventoryCursor());
 		_G(det)->showStaticSpr(7);
 		_G(atds)->set_ats_str(157, TXT_MARK_LOOK, 1, ATS_DATA);

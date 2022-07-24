@@ -55,10 +55,6 @@ class ManagedSurface;
 
 namespace Director {
 
-const uint32 wmModeDesktop = Graphics::kWMModalMenuMode | Graphics::kWMModeManualDrawWidgets;
-const uint32 wmModeFullscreen = Graphics::kWMModalMenuMode | Graphics::kWMModeNoDesktop
-	| Graphics::kWMModeManualDrawWidgets | Graphics::kWMModeFullscreen;
-
 class Archive;
 class Cast;
 class DirectorSound;
@@ -89,7 +85,8 @@ enum {
 	kDebugDesktop		= 1 << 15,
 	kDebug32bpp			= 1 << 16,
 	kDebugEndVideo		= 1 << 17,
-	kDebugLingoStrict	= 1 << 18
+	kDebugLingoStrict	= 1 << 18,
+	kDebugSound			= 1 << 19,
 };
 
 struct MovieReference {

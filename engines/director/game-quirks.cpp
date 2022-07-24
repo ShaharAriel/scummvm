@@ -20,6 +20,7 @@
  */
 
 #include "director/director.h"
+#include "graphics/macgui/macfontmanager.h"
 
 namespace Director {
 
@@ -28,7 +29,7 @@ static void quirkKidsBox() {
     // a full screen 640x480 game window. If desktop mode is off, ScummVM
     // will pick a game window that fits the splash screen and then try
     // to squish the full size game window into it.
-    g_director->_wmMode = Director::wmModeDesktop;
+    g_director->_wmMode &= !Graphics::kWMModeNoDesktop;
     // Game runs in 640x480; clipping it to this size ensures the main
     // game window takes up the full screen, and only the splash is windowed.
     g_director->_wmWidth = 640;
@@ -39,19 +40,13 @@ static void quirkLzone() {
 	SearchMan.addSubDirectoryMatching(g_director->_gameDataDir, "win_data", 0, 2);
 }
 
-static void quirkMediaband() {
-	// Meet Mediaband could have up to 5 levels of directories
-	SearchMan.addDirectory(g_director->_gameDataDir.getPath(), g_director->_gameDataDir, 0, 5);
-}
-
-static void quirkWarlock() {
-	// Meet Mediaband could have up to 5 levels of directories
-	SearchMan.addDirectory(g_director->_gameDataDir.getPath(), g_director->_gameDataDir, 0, 5);
-}
-
 static void quirkMcLuhan() {
 	// TODO. Read fonts from MCLUHAN/SYSTEM directory
 	g_director->_extraSearchPath.push_back("mcluhan\\");
+	Graphics::MacFontManager *fontMan = g_director->_wm->_fontMan;
+	fontMan->loadWindowsFont("MCLUHAN/SYSTEM/MCBOLD13.FON");
+	fontMan->loadWindowsFont("MCLUHAN/SYSTEM/MCLURG__.FON");
+	fontMan->loadWindowsFont("MCLUHAN/SYSTEM/MCL1N___.FON");
 }
 
 struct Quirk {
@@ -61,8 +56,6 @@ struct Quirk {
 } quirks[] = {
     { "kidsbox", Common::kPlatformMacintosh, &quirkKidsBox },
 	{ "lzone", Common::kPlatformWindows, &quirkLzone },
-	{ "mediaband", Common::kPlatformUnknown, &quirkMediaband },
-	{ "warlock", Common::kPlatformUnknown, &quirkWarlock },
 	{ "mcluhan", Common::kPlatformWindows, &quirkMcLuhan },
 	{ nullptr, Common::kPlatformUnknown, nullptr }
 };

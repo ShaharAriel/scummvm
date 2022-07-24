@@ -426,6 +426,7 @@ protected:
 
 	virtual void setupScummVars();
 	virtual void resetScummVars();
+	void setVideoModeVarToCurrentConfig();
 
 	void setupCharsetRenderer(const Common::String &macFontFile);
 	void setupCostumeRenderer();
@@ -605,6 +606,7 @@ protected:
 	uint32 _lastSaveTime = 0;
 	bool _saveTemporaryState = false;
 	bool _loadFromLauncher = false;
+	bool _videoModeChanged = false;
 	Common::String _saveLoadFileName;
 	Common::String _saveLoadDescription;
 
@@ -1025,7 +1027,7 @@ protected:
 	void setPCEPaletteFromPtr(const byte *ptr);
 	void setAmigaPaletteFromPtr(const byte *ptr);
 	virtual void setPaletteFromPtr(const byte *ptr, int numcolor = -1);
-	void updateColorTableV1(int renderMode);
+	void setV1ColorTable(int renderMode);
 
 	virtual void setPalColor(int index, int r, int g, int b);
 	void setDirtyColors(int min, int max);
@@ -1059,8 +1061,7 @@ public:
 protected:
 	// Screen rendering
 	byte *_compositeBuf;
-	byte *_herculesBuf = nullptr;
-	const uint16 *_ditheringTableV1 = nullptr;
+	byte *_hercCGAScaleBuf = nullptr;
 
 	virtual void drawDirtyScreenParts();
 	void updateDirtyScreen(VirtScreenNumber slot);
@@ -1072,8 +1073,7 @@ protected:
 	void mac_undrawIndy3TextBox();
 	void mac_undrawIndy3CreditsText();
 
-	const byte *postProcessV1Graphics(VirtScreen *vs, int &x, int &y, int &width, int &height) const;
-	void ditherCGA(byte *dst, int dstPitch, int x, int y, int width, int height) const;
+	const byte *postProcessDOSGraphics(VirtScreen *vs, int &pitch, int &x, int &y, int &width, int &height) const;
 
 public:
 	VirtScreen *findVirtScreen(int y);
@@ -1082,7 +1082,6 @@ public:
 protected:
 	void fadeIn(int effect);
 	void fadeOut(int effect);
-	void setScrollBuffer();
 
 	void dissolveEffectSelector();
 	void transitionEffect(int a);
