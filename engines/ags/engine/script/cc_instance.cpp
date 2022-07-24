@@ -24,11 +24,10 @@
 #include "ags/engine/ac/dynobj/cc_dynamic_array.h"
 #include "ags/engine/ac/dynobj/managed_object_pool.h"
 #include "ags/shared/gui/gui_defines.h"
-#include "ags/shared/script/cc_error.h"
+#include "ags/shared/script/cc_common.h"
 #include "ags/engine/script/cc_instance.h"
 #include "ags/engine/debugging/debug_log.h"
 #include "ags/shared/debugging/out.h"
-#include "ags/shared/script/cc_options.h"
 #include "ags/engine/script/script.h"
 #include "ags/engine/script/script_runtime.h"
 #include "ags/engine/script/system_imports.h"
@@ -40,6 +39,7 @@
 #include "ags/engine/ac/dynobj/script_user_object.h"
 #include "ags/engine/ac/statobj/ags_static_object.h"
 #include "ags/engine/ac/statobj/static_array.h"
+#include "ags/engine/ac/sys_events.h"
 #include "ags/engine/ac/dynobj/cc_dynamic_object_addr_and_manager.h"
 #include "ags/shared/util/memory.h"
 #include "ags/shared/util/string_utils.h" // linux strnicmp definition
@@ -77,86 +77,113 @@ struct ScriptCommandInfo {
 	bool                ArgIsReg[3];
 };
 
-const ScriptCommandInfo sccmd_info[CC_NUM_SCCMDS] = {
-	ScriptCommandInfo(0                    , "NULL"              , 0, kScOpNoArgIsReg),
-	ScriptCommandInfo(SCMD_ADD             , "addi"              , 2, kScOpOneArgIsReg),
-	ScriptCommandInfo(SCMD_SUB             , "subi"              , 2, kScOpOneArgIsReg),
-	ScriptCommandInfo(SCMD_REGTOREG        , "mov"               , 2, kScOpTwoArgsAreReg),
-	ScriptCommandInfo(SCMD_WRITELIT        , "memwritelit"       , 2, kScOpNoArgIsReg),
-	ScriptCommandInfo(SCMD_RET             , "ret"               , 0, kScOpNoArgIsReg),
-	ScriptCommandInfo(SCMD_LITTOREG        , "movl"              , 2, kScOpOneArgIsReg),
-	ScriptCommandInfo(SCMD_MEMREAD         , "memread4"          , 1, kScOpOneArgIsReg),
-	ScriptCommandInfo(SCMD_MEMWRITE        , "memwrite4"         , 1, kScOpOneArgIsReg),
-	ScriptCommandInfo(SCMD_MULREG          , "mul"               , 2, kScOpTwoArgsAreReg),
-	ScriptCommandInfo(SCMD_DIVREG          , "div"               , 2, kScOpTwoArgsAreReg),
-	ScriptCommandInfo(SCMD_ADDREG          , "add"               , 2, kScOpTwoArgsAreReg),
-	ScriptCommandInfo(SCMD_SUBREG          , "sub"               , 2, kScOpTwoArgsAreReg),
-	ScriptCommandInfo(SCMD_BITAND          , "and"               , 2, kScOpTwoArgsAreReg),
-	ScriptCommandInfo(SCMD_BITOR           , "or"                , 2, kScOpTwoArgsAreReg),
-	ScriptCommandInfo(SCMD_ISEQUAL         , "cmpeq"             , 2, kScOpTwoArgsAreReg),
-	ScriptCommandInfo(SCMD_NOTEQUAL        , "cmpne"             , 2, kScOpTwoArgsAreReg),
-	ScriptCommandInfo(SCMD_GREATER         , "gt"                , 2, kScOpTwoArgsAreReg),
-	ScriptCommandInfo(SCMD_LESSTHAN        , "lt"                , 2, kScOpTwoArgsAreReg),
-	ScriptCommandInfo(SCMD_GTE             , "gte"               , 2, kScOpTwoArgsAreReg),
-	ScriptCommandInfo(SCMD_LTE             , "lte"               , 2, kScOpTwoArgsAreReg),
-	ScriptCommandInfo(SCMD_AND             , "land"              , 2, kScOpTwoArgsAreReg),
-	ScriptCommandInfo(SCMD_OR              , "lor"               , 2, kScOpTwoArgsAreReg),
-	ScriptCommandInfo(SCMD_CALL            , "call"              , 1, kScOpOneArgIsReg),
-	ScriptCommandInfo(SCMD_MEMREADB        , "memread1"          , 1, kScOpOneArgIsReg),
-	ScriptCommandInfo(SCMD_MEMREADW        , "memread2"          , 1, kScOpOneArgIsReg),
-	ScriptCommandInfo(SCMD_MEMWRITEB       , "memwrite1"         , 1, kScOpOneArgIsReg),
-	ScriptCommandInfo(SCMD_MEMWRITEW       , "memwrite2"         , 1, kScOpOneArgIsReg),
-	ScriptCommandInfo(SCMD_JZ              , "jzi"               , 1, kScOpNoArgIsReg),
-	ScriptCommandInfo(SCMD_PUSHREG         , "push"              , 1, kScOpOneArgIsReg),
-	ScriptCommandInfo(SCMD_POPREG          , "pop"               , 1, kScOpOneArgIsReg),
-	ScriptCommandInfo(SCMD_JMP             , "jmpi"              , 1, kScOpNoArgIsReg),
-	ScriptCommandInfo(SCMD_MUL             , "muli"              , 2, kScOpOneArgIsReg),
-	ScriptCommandInfo(SCMD_CALLEXT         , "farcall"           , 1, kScOpOneArgIsReg),
-	ScriptCommandInfo(SCMD_PUSHREAL        , "farpush"           , 1, kScOpOneArgIsReg),
-	ScriptCommandInfo(SCMD_SUBREALSTACK    , "farsubsp"          , 1, kScOpNoArgIsReg),
-	ScriptCommandInfo(SCMD_LINENUM         , "sourceline"        , 1, kScOpNoArgIsReg),
-	ScriptCommandInfo(SCMD_CALLAS          , "callscr"           , 1, kScOpOneArgIsReg),
-	ScriptCommandInfo(SCMD_THISBASE        , "thisaddr"          , 1, kScOpNoArgIsReg),
-	ScriptCommandInfo(SCMD_NUMFUNCARGS     , "setfuncargs"       , 1, kScOpNoArgIsReg),
-	ScriptCommandInfo(SCMD_MODREG          , "mod"               , 2, kScOpTwoArgsAreReg),
-	ScriptCommandInfo(SCMD_XORREG          , "xor"               , 2, kScOpTwoArgsAreReg),
-	ScriptCommandInfo(SCMD_NOTREG          , "not"               , 1, kScOpOneArgIsReg),
-	ScriptCommandInfo(SCMD_SHIFTLEFT       , "shl"               , 2, kScOpTwoArgsAreReg),
-	ScriptCommandInfo(SCMD_SHIFTRIGHT      , "shr"               , 2, kScOpTwoArgsAreReg),
-	ScriptCommandInfo(SCMD_CALLOBJ         , "callobj"           , 1, kScOpOneArgIsReg),
-	ScriptCommandInfo(SCMD_CHECKBOUNDS     , "checkbounds"       , 2, kScOpOneArgIsReg),
-	ScriptCommandInfo(SCMD_MEMWRITEPTR     , "memwrite.ptr"      , 1, kScOpOneArgIsReg),
-	ScriptCommandInfo(SCMD_MEMREADPTR      , "memread.ptr"       , 1, kScOpOneArgIsReg),
-	ScriptCommandInfo(SCMD_MEMZEROPTR      , "memwrite.ptr.0"    , 0, kScOpNoArgIsReg),
-	ScriptCommandInfo(SCMD_MEMINITPTR      , "meminit.ptr"       , 1, kScOpOneArgIsReg),
-	ScriptCommandInfo(SCMD_LOADSPOFFS      , "load.sp.offs"      , 1, kScOpNoArgIsReg),
-	ScriptCommandInfo(SCMD_CHECKNULL       , "checknull.ptr"     , 0, kScOpNoArgIsReg),
-	ScriptCommandInfo(SCMD_FADD            , "faddi"             , 2, kScOpOneArgIsReg),
-	ScriptCommandInfo(SCMD_FSUB            , "fsubi"             , 2, kScOpOneArgIsReg),
-	ScriptCommandInfo(SCMD_FMULREG         , "fmul"              , 2, kScOpTwoArgsAreReg),
-	ScriptCommandInfo(SCMD_FDIVREG         , "fdiv"              , 2, kScOpTwoArgsAreReg),
-	ScriptCommandInfo(SCMD_FADDREG         , "fadd"              , 2, kScOpTwoArgsAreReg),
-	ScriptCommandInfo(SCMD_FSUBREG         , "fsub"              , 2, kScOpTwoArgsAreReg),
-	ScriptCommandInfo(SCMD_FGREATER        , "fgt"               , 2, kScOpTwoArgsAreReg),
-	ScriptCommandInfo(SCMD_FLESSTHAN       , "flt"               , 2, kScOpTwoArgsAreReg),
-	ScriptCommandInfo(SCMD_FGTE            , "fgte"              , 2, kScOpTwoArgsAreReg),
-	ScriptCommandInfo(SCMD_FLTE            , "flte"              , 2, kScOpTwoArgsAreReg),
-	ScriptCommandInfo(SCMD_ZEROMEMORY      , "zeromem"           , 1, kScOpNoArgIsReg),
-	ScriptCommandInfo(SCMD_CREATESTRING    , "newstring"         , 1, kScOpOneArgIsReg),
-	ScriptCommandInfo(SCMD_STRINGSEQUAL    , "streq"             , 2, kScOpTwoArgsAreReg),
-	ScriptCommandInfo(SCMD_STRINGSNOTEQ    , "strne"             , 2, kScOpTwoArgsAreReg),
-	ScriptCommandInfo(SCMD_CHECKNULLREG    , "checknull"         , 1, kScOpOneArgIsReg),
-	ScriptCommandInfo(SCMD_LOOPCHECKOFF    , "loopcheckoff"      , 0, kScOpNoArgIsReg),
-	ScriptCommandInfo(SCMD_MEMZEROPTRND    , "memwrite.ptr.0.nd" , 0, kScOpNoArgIsReg),
-	ScriptCommandInfo(SCMD_JNZ             , "jnzi"              , 1, kScOpNoArgIsReg),
-	ScriptCommandInfo(SCMD_DYNAMICBOUNDS   , "dynamicbounds"     , 1, kScOpOneArgIsReg),
-	ScriptCommandInfo(SCMD_NEWARRAY        , "newarray"          , 3, kScOpOneArgIsReg),
-	ScriptCommandInfo(SCMD_NEWUSEROBJECT   , "newuserobject"     , 2, kScOpOneArgIsReg),
+struct ScriptCommands {
+	const ScriptCommandInfo _items[CC_NUM_SCCMDS] = {
+		ScriptCommandInfo(0                    , "NULL"              , 0, kScOpNoArgIsReg),
+		ScriptCommandInfo(SCMD_ADD             , "addi"              , 2, kScOpOneArgIsReg),
+		ScriptCommandInfo(SCMD_SUB             , "subi"              , 2, kScOpOneArgIsReg),
+		ScriptCommandInfo(SCMD_REGTOREG        , "mov"               , 2, kScOpTwoArgsAreReg),
+		ScriptCommandInfo(SCMD_WRITELIT        , "memwritelit"       , 2, kScOpNoArgIsReg),
+		ScriptCommandInfo(SCMD_RET             , "ret"               , 0, kScOpNoArgIsReg),
+		ScriptCommandInfo(SCMD_LITTOREG        , "movl"              , 2, kScOpOneArgIsReg),
+		ScriptCommandInfo(SCMD_MEMREAD         , "memread4"          , 1, kScOpOneArgIsReg),
+		ScriptCommandInfo(SCMD_MEMWRITE        , "memwrite4"         , 1, kScOpOneArgIsReg),
+		ScriptCommandInfo(SCMD_MULREG          , "mul"               , 2, kScOpTwoArgsAreReg),
+		ScriptCommandInfo(SCMD_DIVREG          , "div"               , 2, kScOpTwoArgsAreReg),
+		ScriptCommandInfo(SCMD_ADDREG          , "add"               , 2, kScOpTwoArgsAreReg),
+		ScriptCommandInfo(SCMD_SUBREG          , "sub"               , 2, kScOpTwoArgsAreReg),
+		ScriptCommandInfo(SCMD_BITAND          , "and"               , 2, kScOpTwoArgsAreReg),
+		ScriptCommandInfo(SCMD_BITOR           , "or"                , 2, kScOpTwoArgsAreReg),
+		ScriptCommandInfo(SCMD_ISEQUAL         , "cmpeq"             , 2, kScOpTwoArgsAreReg),
+		ScriptCommandInfo(SCMD_NOTEQUAL        , "cmpne"             , 2, kScOpTwoArgsAreReg),
+		ScriptCommandInfo(SCMD_GREATER         , "gt"                , 2, kScOpTwoArgsAreReg),
+		ScriptCommandInfo(SCMD_LESSTHAN        , "lt"                , 2, kScOpTwoArgsAreReg),
+		ScriptCommandInfo(SCMD_GTE             , "gte"               , 2, kScOpTwoArgsAreReg),
+		ScriptCommandInfo(SCMD_LTE             , "lte"               , 2, kScOpTwoArgsAreReg),
+		ScriptCommandInfo(SCMD_AND             , "land"              , 2, kScOpTwoArgsAreReg),
+		ScriptCommandInfo(SCMD_OR              , "lor"               , 2, kScOpTwoArgsAreReg),
+		ScriptCommandInfo(SCMD_CALL            , "call"              , 1, kScOpOneArgIsReg),
+		ScriptCommandInfo(SCMD_MEMREADB        , "memread1"          , 1, kScOpOneArgIsReg),
+		ScriptCommandInfo(SCMD_MEMREADW        , "memread2"          , 1, kScOpOneArgIsReg),
+		ScriptCommandInfo(SCMD_MEMWRITEB       , "memwrite1"         , 1, kScOpOneArgIsReg),
+		ScriptCommandInfo(SCMD_MEMWRITEW       , "memwrite2"         , 1, kScOpOneArgIsReg),
+		ScriptCommandInfo(SCMD_JZ              , "jzi"               , 1, kScOpNoArgIsReg),
+		ScriptCommandInfo(SCMD_PUSHREG         , "push"              , 1, kScOpOneArgIsReg),
+		ScriptCommandInfo(SCMD_POPREG          , "pop"               , 1, kScOpOneArgIsReg),
+		ScriptCommandInfo(SCMD_JMP             , "jmpi"              , 1, kScOpNoArgIsReg),
+		ScriptCommandInfo(SCMD_MUL             , "muli"              , 2, kScOpOneArgIsReg),
+		ScriptCommandInfo(SCMD_CALLEXT         , "farcall"           , 1, kScOpOneArgIsReg),
+		ScriptCommandInfo(SCMD_PUSHREAL        , "farpush"           , 1, kScOpOneArgIsReg),
+		ScriptCommandInfo(SCMD_SUBREALSTACK    , "farsubsp"          , 1, kScOpNoArgIsReg),
+		ScriptCommandInfo(SCMD_LINENUM         , "sourceline"        , 1, kScOpNoArgIsReg),
+		ScriptCommandInfo(SCMD_CALLAS          , "callscr"           , 1, kScOpOneArgIsReg),
+		ScriptCommandInfo(SCMD_THISBASE        , "thisaddr"          , 1, kScOpNoArgIsReg),
+		ScriptCommandInfo(SCMD_NUMFUNCARGS     , "setfuncargs"       , 1, kScOpNoArgIsReg),
+		ScriptCommandInfo(SCMD_MODREG          , "mod"               , 2, kScOpTwoArgsAreReg),
+		ScriptCommandInfo(SCMD_XORREG          , "xor"               , 2, kScOpTwoArgsAreReg),
+		ScriptCommandInfo(SCMD_NOTREG          , "not"               , 1, kScOpOneArgIsReg),
+		ScriptCommandInfo(SCMD_SHIFTLEFT       , "shl"               , 2, kScOpTwoArgsAreReg),
+		ScriptCommandInfo(SCMD_SHIFTRIGHT      , "shr"               , 2, kScOpTwoArgsAreReg),
+		ScriptCommandInfo(SCMD_CALLOBJ         , "callobj"           , 1, kScOpOneArgIsReg),
+		ScriptCommandInfo(SCMD_CHECKBOUNDS     , "checkbounds"       , 2, kScOpOneArgIsReg),
+		ScriptCommandInfo(SCMD_MEMWRITEPTR     , "memwrite.ptr"      , 1, kScOpOneArgIsReg),
+		ScriptCommandInfo(SCMD_MEMREADPTR      , "memread.ptr"       , 1, kScOpOneArgIsReg),
+		ScriptCommandInfo(SCMD_MEMZEROPTR      , "memwrite.ptr.0"    , 0, kScOpNoArgIsReg),
+		ScriptCommandInfo(SCMD_MEMINITPTR      , "meminit.ptr"       , 1, kScOpOneArgIsReg),
+		ScriptCommandInfo(SCMD_LOADSPOFFS      , "load.sp.offs"      , 1, kScOpNoArgIsReg),
+		ScriptCommandInfo(SCMD_CHECKNULL       , "checknull.ptr"     , 0, kScOpNoArgIsReg),
+		ScriptCommandInfo(SCMD_FADD            , "faddi"             , 2, kScOpOneArgIsReg),
+		ScriptCommandInfo(SCMD_FSUB            , "fsubi"             , 2, kScOpOneArgIsReg),
+		ScriptCommandInfo(SCMD_FMULREG         , "fmul"              , 2, kScOpTwoArgsAreReg),
+		ScriptCommandInfo(SCMD_FDIVREG         , "fdiv"              , 2, kScOpTwoArgsAreReg),
+		ScriptCommandInfo(SCMD_FADDREG         , "fadd"              , 2, kScOpTwoArgsAreReg),
+		ScriptCommandInfo(SCMD_FSUBREG         , "fsub"              , 2, kScOpTwoArgsAreReg),
+		ScriptCommandInfo(SCMD_FGREATER        , "fgt"               , 2, kScOpTwoArgsAreReg),
+		ScriptCommandInfo(SCMD_FLESSTHAN       , "flt"               , 2, kScOpTwoArgsAreReg),
+		ScriptCommandInfo(SCMD_FGTE            , "fgte"              , 2, kScOpTwoArgsAreReg),
+		ScriptCommandInfo(SCMD_FLTE            , "flte"              , 2, kScOpTwoArgsAreReg),
+		ScriptCommandInfo(SCMD_ZEROMEMORY      , "zeromem"           , 1, kScOpNoArgIsReg),
+		ScriptCommandInfo(SCMD_CREATESTRING    , "newstring"         , 1, kScOpOneArgIsReg),
+		ScriptCommandInfo(SCMD_STRINGSEQUAL    , "streq"             , 2, kScOpTwoArgsAreReg),
+		ScriptCommandInfo(SCMD_STRINGSNOTEQ    , "strne"             , 2, kScOpTwoArgsAreReg),
+		ScriptCommandInfo(SCMD_CHECKNULLREG    , "checknull"         , 1, kScOpOneArgIsReg),
+		ScriptCommandInfo(SCMD_LOOPCHECKOFF    , "loopcheckoff"      , 0, kScOpNoArgIsReg),
+		ScriptCommandInfo(SCMD_MEMZEROPTRND    , "memwrite.ptr.0.nd" , 0, kScOpNoArgIsReg),
+		ScriptCommandInfo(SCMD_JNZ             , "jnzi"              , 1, kScOpNoArgIsReg),
+		ScriptCommandInfo(SCMD_DYNAMICBOUNDS   , "dynamicbounds"     , 1, kScOpOneArgIsReg),
+		ScriptCommandInfo(SCMD_NEWARRAY        , "newarray"          , 3, kScOpOneArgIsReg),
+		ScriptCommandInfo(SCMD_NEWUSEROBJECT   , "newuserobject"     , 2, kScOpOneArgIsReg),
+	};
+
+	const ScriptCommandInfo &operator[](uint idx) {
+		return _items[idx];
+	}
 };
+static ScriptCommands *g_commands;
+
+void script_commands_init() {
+	g_commands = new ScriptCommands();
+}
+
+void script_commands_free() {
+	delete g_commands;
+}
 
 const char *regnames[] = { "null", "sp", "mar", "ax", "bx", "cx", "op", "dx" };
 
 const char *fixupnames[] = { "null", "fix_gldata", "fix_func", "fix_string", "fix_import", "fix_datadata", "fix_stack" };
+
+String cc_get_callstack(int max_lines) {
+	String callstack;
+	for (auto sci = _GP(InstThreads).crbegin(); sci != _GP(InstThreads).crend(); ++sci) {
+		if (callstack.IsEmpty())
+			callstack.Append("in the active script:\n");
+		else
+			callstack.Append("in the waiting script:\n");
+		callstack.Append((*sci)->GetCallStack(max_lines));
+	}
+	return callstack;
+}
 
 // Function call stack is used to temporarily store
 // values before passing them to script function
@@ -180,9 +207,8 @@ struct FunctionCallStack {
 	int                 Count;
 };
 
-
 ccInstance *ccInstance::GetCurrentInstance() {
-	return _G(current_instance);
+	return _GP(InstThreads).size() > 0 ? _GP(InstThreads).back() : nullptr;
 }
 
 ccInstance *ccInstance::CreateFromScript(PScript scri) {
@@ -198,6 +224,12 @@ ccInstance *ccInstance::CreateEx(PScript scri, ccInstance *joined) {
 	}
 
 	return cinst;
+}
+
+void ccInstance::SetExecTimeout(unsigned sys_poll_ms, unsigned abort_ms, unsigned abort_loops) {
+	_G(timeoutCheckMs) = sys_poll_ms;
+	_G(timeoutAbortMs) = abort_ms;
+	_G(maxWhileLoops) = abort_loops;
 }
 
 ccInstance::ccInstance() {
@@ -263,7 +295,7 @@ void ccInstance::AbortAndDestroy() {
 	}
 
 int ccInstance::CallScriptFunction(const char *funcname, int32_t numargs, const RuntimeScriptValue *params) {
-	_G(ccError) = 0;
+	cc_clear_error();
 	_G(currentline) = 0;
 
 	if (numargs > 0 && !params) {
@@ -321,49 +353,41 @@ int ccInstance::CallScriptFunction(const char *funcname, int32_t numargs, const 
 		return -2;
 	}
 
-	// Allow to pass less parameters if script callback has less declared args
-	numargs = std::min(numargs, export_args);
-
-	//numargs++;                    // account for return address
+	// Prepare instance for run
 	flags &= ~INSTF_ABORTED;
-
+	// Allow to pass less parameters if script callback has less declared args
+	numargs = MIN(numargs, export_args);
 	// object pointer needs to start zeroed
 	registers[SREG_OP].SetDynamicObject(nullptr, nullptr);
-
-	ccInstance *currentInstanceWas = _G(current_instance);
 	registers[SREG_SP].SetStackPtr(&stack[0]);
 	stackdata_ptr = stackdata;
 	// NOTE: Pushing parameters to stack in reverse order
 	ASSERT_STACK_SPACE_AVAILABLE(numargs + 1 /* return address */)
-	for (int i = numargs - 1; i >= 0; --i) {
-		PushValueToStack(params[i]);
-	}
+		for (int i = numargs - 1; i >= 0; --i) {
+			PushValueToStack(params[i]);
+		}
 	PushValueToStack(RuntimeScriptValue().SetInt32(0)); // return address on stack
-	if (_G(ccError)) {
-		return -1;
-	}
-	runningInst = this;
 
+	_GP(InstThreads).push_back(this); // push instance thread
+	runningInst = this;
 	int reterr = Run(startat);
+	// Cleanup before returning, even if error
 	ASSERT_STACK_SIZE(numargs);
 	PopValuesFromStack(numargs);
 	pc = 0;
-	_G(current_instance) = currentInstanceWas;
-
-	if (_G(abort_engine))
-		return -1;
+	_G(currentline) = 0;
+	_GP(InstThreads).pop_back(); // pop instance thread
+	if (reterr != 0)
+		return reterr;
 
 	// NOTE that if proper multithreading is added this will need
-	// to be reconsidered, since the GC could be run in the middle
-	// of a RET from a function or something where there is an
+	// to be reconsidered, since the GC could be run in the middle 
+	// of a RET from a function or something where there is an 
 	// object with ref count 0 that is in use
 	_GP(pool).RunGarbageCollectionIfAppropriate();
 
 	if (_G(new_line_hook))
 		_G(new_line_hook)(nullptr, 0);
-
-	if (reterr)
-		return -6;
 
 	if (flags & INSTF_ABORTED) {
 		flags &= ~INSTF_ABORTED;
@@ -377,7 +401,7 @@ int ccInstance::CallScriptFunction(const char *funcname, int32_t numargs, const 
 		cc_error("stack pointer was not zero at completion of script");
 		return -5;
 	}
-	return _G(ccError);
+	return cc_has_error();
 }
 
 // Macros to maintain the call stack
@@ -413,21 +437,24 @@ int ccInstance::Run(int32_t curpc) {
 	int32_t thisbase[MAXNEST], funcstart[MAXNEST];
 	int was_just_callas = -1;
 	int curnest = 0;
-	int loopIterations = 0;
+	unsigned loopIterations = 0;
 	int num_args_to_func = -1;
 	int next_call_needs_object = 0;
 	int loopIterationCheckDisabled = 0;
 	thisbase[0] = 0;
 	funcstart[0] = pc;
-	_G(current_instance) = this;
 	ccInstance *codeInst = runningInst;
 	bool write_debug_dump = ccGetOption(SCOPT_DEBUGRUN) ||
 		(gDebugLevel > 0 && DebugMan.isDebugChannelEnabled(::AGS::kDebugScript));
 	ScriptOperation codeOp;
-
 	FunctionCallStack func_callstack;
 
-	while (1) {
+	const auto timeout = std::chrono::milliseconds(_G(timeoutCheckMs));
+	const auto timeout_abort = std::chrono::milliseconds(_G(timeoutAbortMs));
+	_lastAliveTs = AGS_Clock::now();
+	bool timeout_warn = false;
+
+	while ((flags & INSTF_ABORTED) == 0) {
 		if (_G(abort_engine))
 			return -1;
 
@@ -448,7 +475,7 @@ int ccInstance::Run(int32_t curpc) {
 			return -1;
 		}
 
-		codeOp.ArgCount = sccmd_info[codeOp.Instruction.Code].ArgCount;
+		codeOp.ArgCount = (*g_commands)[codeOp.Instruction.Code].ArgCount;
 		if (pc + codeOp.ArgCount >= codeInst->codesize) {
 			cc_error("unexpected end of code data (%d; %d)", pc + codeOp.ArgCount, codeInst->codesize);
 			return -1;
@@ -543,7 +570,7 @@ int ccInstance::Run(int32_t curpc) {
 					registers[SREG_SP].RValue++;
 				} else {
 					PushDataToStack(arg2.IValue);
-					if (_G(ccError)) {
+					if (cc_has_error()) {
 						return -1;
 					}
 				}
@@ -564,7 +591,7 @@ int ccInstance::Run(int32_t curpc) {
 					// This is practically LOADSPOFFS
 					reg1 = GetStackPtrOffsetRw(arg2.IValue);
 				}
-				if (_G(ccError)) {
+				if (cc_has_error()) {
 					return -1;
 				}
 			} else {
@@ -609,7 +636,6 @@ int ccInstance::Run(int32_t curpc) {
 				returnValue = registers[SREG_AX].IValue;
 				return 0;
 			}
-			_G(current_instance) = this;
 			POP_CALL_STACK;
 			continue; // continue so that the PC doesn't get overwritten
 		}
@@ -626,7 +652,7 @@ int ccInstance::Run(int32_t curpc) {
 			break;
 		case SCMD_LOADSPOFFS:
 			registers[SREG_MAR] = GetStackPtrOffsetRw(arg1.IValue);
-			if (_G(ccError)) {
+			if (cc_has_error()) {
 				return -1;
 			}
 			break;
@@ -705,9 +731,6 @@ int ccInstance::Run(int32_t curpc) {
 
 			ASSERT_STACK_SPACE_AVAILABLE(1);
 			PushValueToStack(RuntimeScriptValue().SetInt32(pc + codeOp.ArgCount + 1));
-			if (_G(ccError)) {
-				return -1;
-			}
 
 			if (thisbase[curnest] == 0)
 				pc = reg1.IValue;
@@ -753,9 +776,6 @@ int ccInstance::Run(int32_t curpc) {
 			// Push reg[arg1] value to the stack
 			ASSERT_STACK_SPACE_AVAILABLE(1);
 			PushValueToStack(reg1);
-			if (_G(ccError)) {
-				return -1;
-			}
 			break;
 		case SCMD_POPREG:
 			ASSERT_STACK_SIZE(1);
@@ -764,15 +784,36 @@ int ccInstance::Run(int32_t curpc) {
 		case SCMD_JMP:
 			pc += arg1.IValue;
 
-			if ((arg1.IValue < 0) && (_G(maxWhileLoops) > 0) && (loopIterationCheckDisabled == 0)) {
-				// Make sure it's not stuck in a While loop
-				loopIterations ++;
+			// Make sure it's not stuck in a While loop
+			if (arg1.IValue < 0) {
+				auto now = AGS_Clock::now();
+				auto test_dur = std::chrono::duration_cast<std::chrono::milliseconds>(now - _lastAliveTs);
 				if (flags & INSTF_RUNNING) {
-					loopIterations = 0;
+					// was notified still running, don't do anything
 					flags &= ~INSTF_RUNNING;
-				} else if (loopIterations > _G(maxWhileLoops)) {
-					cc_error("!Script appears to be hung (a while loop ran %d times). The problem may be in a calling function; check the call stack.", loopIterations);
+					_lastAliveTs = now;
+					timeout_warn = false;
+					loopIterations = 0;
+				} else if ((loopIterationCheckDisabled == 0) && (_G(maxWhileLoops) > 0) && (++loopIterations > _G(maxWhileLoops))) {
+					cc_error("!Script appears to be hung (a while loop ran %d times). The problem may be in a calling function; check the call stack.", (int)loopIterations);
 					return -1;
+				} else if (test_dur > timeout) {
+					// minimal timeout occured
+					if ((timeout_abort.count() > 0) && (test_dur.count() > timeout_abort.count())) {
+						// critical timeout occured
+						/* CHECKME: disabled, because not working well
+						if (loopIterationCheckDisabled == 0) {
+							cc_error("!Script appears to be hung (no game update for %lld ms). The problem may be in a calling function; check the call stack.", test_dur.count());
+							return -1;
+						}
+						*/
+						if (!timeout_warn) {
+							debug_script_warn("WARNING: script execution hung? (%lld ms)", test_dur.count());
+							timeout_warn = true;
+						}
+					}
+					// at least let user to manipulate the game window
+					sys_evt_process_pending();
 				}
 			}
 			break;
@@ -808,7 +849,7 @@ int ccInstance::Run(int32_t curpc) {
 		// 64 bit: Handles are always 32 bit values. They are not C pointer.
 
 		case SCMD_MEMREADPTR: {
-			_G(ccError) = 0;
+			cc_clear_error();
 
 			int32_t handle = registers[SREG_MAR].ReadInt32();
 			void *object;
@@ -821,7 +862,7 @@ int ccInstance::Run(int32_t curpc) {
 			}
 
 			// if error occurred, cc_error will have been set
-			if (_G(ccError))
+			if (cc_has_error())
 				return -1;
 			break;
 		}
@@ -937,7 +978,7 @@ int ccInstance::Run(int32_t curpc) {
 			// 0, so that the cc_run_code returns
 			RuntimeScriptValue oldstack = registers[SREG_SP];
 			PushValueToStack(RuntimeScriptValue().SetInt32(0));
-			if (_G(ccError)) {
+			if (cc_has_error()) {
 				return -1;
 			}
 
@@ -959,9 +1000,6 @@ int ccInstance::Run(int32_t curpc) {
 				return -1;
 
 			runningInst = wasRunning;
-
-			if (flags & INSTF_ABORTED)
-				return 0;
 
 			if (oldstack != registers[SREG_SP]) {
 				cc_error("stack corrupt after function call");
@@ -1033,12 +1071,11 @@ int ccInstance::Run(int32_t curpc) {
 				cc_error("invalid pointer type for function call: %d", reg1.Type);
 			}
 
-			if (_G(ccError) || _G(abort_engine)) {
+			if (cc_has_error() || _G(abort_engine)) {
 				return -1;
 			}
 
 			registers[SREG_AX] = return_value;
-			_G(current_instance) = this;
 			next_call_needs_object = 0;
 			num_args_to_func = -1;
 			break;
@@ -1210,14 +1247,12 @@ int ccInstance::Run(int32_t curpc) {
 			return -1;
 		}
 
-		if (flags & INSTF_ABORTED)
-			return 0;
-
 		pc += codeOp.ArgCount + 1;
 	}
+	return 0;
 }
 
-String ccInstance::GetCallStack(int maxLines) {
+String ccInstance::GetCallStack(int maxLines) const {
 	String buffer = String::FromFormat("in \"%s\", line %d\n", runningInst->instanceof->GetSectionName(pc), line_number);
 
 	int linesDone = 0;
@@ -1231,13 +1266,13 @@ String ccInstance::GetCallStack(int maxLines) {
 	return buffer;
 }
 
-void ccInstance::GetScriptPosition(ScriptPosition &script_pos) {
+void ccInstance::GetScriptPosition(ScriptPosition &script_pos) const {
 	script_pos.Section = runningInst->instanceof->GetSectionName(pc);
 	script_pos.Line    = line_number;
 }
 
 // get a pointer to a variable or function exported by the script
-RuntimeScriptValue ccInstance::GetSymbolAddress(const char *symname) {
+RuntimeScriptValue ccInstance::GetSymbolAddress(const char *symname) const {
 	int k;
 	char altName[200];
 	snprintf(altName, sizeof(altName), "%s$", symname);
@@ -1253,7 +1288,7 @@ RuntimeScriptValue ccInstance::GetSymbolAddress(const char *symname) {
 	return rval_null;
 }
 
-void ccInstance::DumpInstruction(const ScriptOperation &op) {
+void ccInstance::DumpInstruction(const ScriptOperation &op) const {
 	// line_num local var should be shared between all the instances
 	static int line_num = 0;
 
@@ -1264,7 +1299,7 @@ void ccInstance::DumpInstruction(const ScriptOperation &op) {
 
 	debugN("Line %3d, IP:%8d (SP:%p) ", line_num, pc, (void *)(registers[SREG_SP].RValue));
 
-	const ScriptCommandInfo &cmd_info = sccmd_info[op.Instruction.Code];
+	const ScriptCommandInfo &cmd_info = (*g_commands)[op.Instruction.Code];
 	debugN("%s", cmd_info.CmdName);
 
 	for (int i = 0; i < cmd_info.ArgCount; ++i) {
@@ -1612,10 +1647,10 @@ static int DetermineScriptLine(const int32_t *code, size_t codesz, size_t at_pc)
 	for (size_t pc = 0; (pc <= at_pc) && (pc < codesz); ++pc) {
 		int op = code[pc] & INSTANCE_ID_REMOVEMASK;
 		if (op < 0 || op >= CC_NUM_SCCMDS) return -1;
-		if (pc + sccmd_info[op].ArgCount >= codesz) return -1;
+		if (pc + (*g_commands)[op].ArgCount >= codesz) return -1;
 		if (op == SCMD_LINENUM)
 			line = code[pc + 1];
-		pc += sccmd_info[op].ArgCount;
+		pc += (*g_commands)[op].ArgCount;
 	}
 	return line;
 }
@@ -1696,7 +1731,7 @@ bool ccInstance::ReadOperation(ScriptOperation &op, int32_t at_pc)
     op.Instruction.InstanceId   = (op.Instruction.Code >> INSTANCE_ID_SHIFT) & INSTANCE_ID_MASK;
     op.Instruction.Code        &= INSTANCE_ID_REMOVEMASK; // now this is pure instruction code
 
-    int want_args = sccmd_info[op.Instruction.Code].ArgCount;
+    int want_args = (*g_commands)[op.Instruction.Code].ArgCount;
     if (at_pc + want_args >= codesize)
     {
         cc_error("unexpected end of code data at %d", at_pc + want_args);

@@ -33,20 +33,14 @@
 //
 //=============================================================================
 
-#include "ags/engine/script/script_runtime.h"
-#include "ags/shared/script/script_common.h"
-#include "ags/shared/script/cc_error.h"
-#include "ags/shared/script/cc_options.h"
 #include "ags/engine/ac/dynobj/cc_dynamic_array.h"
-#include "ags/engine/script/system_imports.h"
 #include "ags/engine/ac/statobj/static_object.h"
-#include "ags/plugins/ags_plugin.h"
-#include "ags/plugins/plugin_base.h"
+#include "ags/shared/script/cc_common.h"
+#include "ags/engine/script/system_imports.h"
+#include "ags/engine/script/script_runtime.h"
 #include "ags/globals.h"
 
 namespace AGS3 {
-
-// static const char ccRunnerCopyright[] = "ScriptExecuter32 v" SCOM_VERSIONSTR " (c) 2001 Chris Jones";
 
 bool ccAddExternalStaticFunction(const String &name, ScriptAPIFunction *pfn) {
 	return _GP(simp).add(name, RuntimeScriptValue().SetStaticFunction(pfn), nullptr) != UINT32_MAX;
@@ -116,16 +110,14 @@ Plugins::PluginMethod ccGetSymbolAddressForPlugin(const String &name) {
 	return Plugins::PluginMethod();
 }
 
-// If a while loop does this many iterations without the
-// NofityScriptAlive function getting called, the script
-// aborts. Set to 0 to disable.
-void ccSetScriptAliveTimer(int numloop) {
-	_G(maxWhileLoops) = numloop;
-}
+void ccSetScriptAliveTimer(unsigned sys_poll_timeout, unsigned abort_timeout, unsigned abort_loops) {
+	 ccInstance::SetExecTimeout(sys_poll_timeout, abort_timeout, abort_loops);
+ }
 
 void ccNotifyScriptStillAlive() {
-	if (_G(current_instance) != nullptr)
-		_G(current_instance)->flags |= INSTF_RUNNING;
+	ccInstance *cur_inst = ccInstance::GetCurrentInstance();
+	if (cur_inst)
+		cur_inst->flags |= INSTF_RUNNING;
 }
 
 void ccSetDebugHook(new_line_hook_type jibble) {

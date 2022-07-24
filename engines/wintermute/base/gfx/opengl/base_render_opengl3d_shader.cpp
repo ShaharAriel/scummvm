@@ -23,9 +23,12 @@
 #include "engines/wintermute/ad/ad_generic.h"
 #include "engines/wintermute/ad/ad_walkplane.h"
 #include "engines/wintermute/base/base_game.h"
+#include "engines/wintermute/base/gfx/base_image.h"
 #include "engines/wintermute/base/gfx/3ds/camera3d.h"
 
 #include "graphics/opengl/system_headers.h"
+
+#include "common/config-manager.h"
 
 #include "math/glmath.h"
 
@@ -232,7 +235,7 @@ bool BaseRenderOpenGL3DShader::enableShadows() {
 		glBufferData(GL_ARRAY_BUFFER, 4 * 12, flatShadowMaskVertices, GL_STATIC_DRAW);
 
 		static const char *flatShadowMaskAttributes[] = { "position", nullptr };
-		_flatShadowMaskShader = OpenGL::ShaderGL::fromFiles("wme_flat_shadow_mask", flatShadowMaskAttributes);
+		_flatShadowMaskShader = OpenGL::Shader::fromFiles("wme_flat_shadow_mask", flatShadowMaskAttributes);
 		_flatShadowMaskShader->enableVertexAttribute("position", _flatShadowMaskVBO, 3, GL_FLOAT, false, 12, 0);
 
 		_flatShadowMaskShader->use();
@@ -333,17 +336,30 @@ bool BaseRenderOpenGL3DShader::stencilSupported() {
 }
 
 BaseImage *BaseRenderOpenGL3DShader::takeScreenshot() {
-	warning("BaseRenderOpenGL3DShader::takeScreenshot not yet implemented");
-	return nullptr;
-}
+	BaseImage *screenshot = new BaseImage();
+	Graphics::Surface *surface = new Graphics::Surface();
+#ifdef SCUMM_BIG_ENDIAN
+	Graphics::PixelFormat format(4, 8, 8, 8, 8, 24, 16, 8, 0);
+#else
+	Graphics::PixelFormat format(4, 8, 8, 8, 8, 0, 8, 16, 24);
+#endif
+	surface->create(_viewportRect.width(), _viewportRect.height(), format);
 
-bool BaseRenderOpenGL3DShader::saveScreenShot(const Common::String &filename, int sizeX, int sizeY) {
-	warning("BaseRenderOpenGL3DShader::saveScreenshot not yet implemented");
-	return true;
+	glReadPixels(_viewportRect.left, g_system->getHeight() - _viewportRect.bottom, _viewportRect.width(), _viewportRect.height(),
+	             GL_RGBA, GL_UNSIGNED_BYTE, surface->getPixels());
+	flipVertical(surface);
+	Graphics::Surface *converted = surface->convertTo(getPixelFormat());
+	screenshot->copyFrom(converted);
+	delete surface;
+	delete converted;
+	return screenshot;
 }
 
 void BaseRenderOpenGL3DShader::setWindowed(bool windowed) {
-	warning("BaseRenderOpenGL3DShader::setWindowed not yet implemented");
+	ConfMan.setBool("fullscreen", !windowed);
+	g_system->beginGFXTransaction();
+	g_system->setFeatureState(OSystem::kFeatureFullscreenMode, !windowed);
+	g_system->endGFXTransaction();
 }
 
 void BaseRenderOpenGL3DShader::fadeToColor(byte r, byte g, byte b, byte a) {
@@ -388,9 +404,9 @@ bool BaseRenderOpenGL3DShader::drawLine(int x1, int y1, int x2, int y2, uint32 c
 	float lineCoords[4];
 
 	lineCoords[0] = x1;
-	lineCoords[1] = y1;
+	lineCoords[1] = _height - y1;
 	lineCoords[2] = x2;
-	lineCoords[3] = y2;
+	lineCoords[3] = _height - y2;
 
 	glBufferSubData(GL_ARRAY_BUFFER, 0, 2 * 8, lineCoords);
 
@@ -407,16 +423,11 @@ bool BaseRenderOpenGL3DShader::drawLine(int x1, int y1, int x2, int y2, uint32 c
 
 	_lineShader->use();
 	_lineShader->setUniform("color", colorValue);
-	_fadeShader->setUniform("projMatrix", _projectionMatrix2d);
+	_lineShader->setUniform("projMatrix", _projectionMatrix2d);
 
 	glDrawArrays(GL_LINES, 0, 2);
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	return true;
-}
-
-bool BaseRenderOpenGL3DShader::drawRect(int x1, int y1, int x2, int y2, uint32 color, int width) {
-	warning("BaseRenderOpenGL3DShader::drawRect not yet implemented");
 	return true;
 }
 
@@ -475,12 +486,12 @@ void BaseRenderOpenGL3DShader::setWorldTransform(const Math::Matrix4 &transform)
 }
 
 bool BaseRenderOpenGL3DShader::windowedBlt() {
-	warning("BaseRenderOpenGL3DShader::windowedBlt not yet implemented");
+	flip();
 	return true;
 }
 
 void Wintermute::BaseRenderOpenGL3DShader::onWindowChange() {
-	warning("BaseRenderOpenGL3DShader::onWindowChange not yet implemented");
+	_windowed = !g_system->getFeatureState(OSystem::kFeatureFullscreenMode);
 }
 
 bool BaseRenderOpenGL3DShader::initRenderer(int width, int height, bool windowed) {
@@ -490,26 +501,26 @@ bool BaseRenderOpenGL3DShader::initRenderer(int width, int height, bool windowed
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 	static const char *spriteAttributes[] = {"position", "texcoord", "color", nullptr};
-	_spriteShader = OpenGL::ShaderGL::fromFiles("wme_sprite", spriteAttributes);
+	_spriteShader = OpenGL::Shader::fromFiles("wme_sprite", spriteAttributes);
 
 	_spriteShader->enableVertexAttribute("position", _spriteVBO, 2, GL_FLOAT, false, sizeof(SpriteVertexShader), 0);
 	_spriteShader->enableVertexAttribute("texcoord", _spriteVBO, 2, GL_FLOAT, false, sizeof(SpriteVertexShader), 8);
 	_spriteShader->enableVertexAttribute("color", _spriteVBO, 4, GL_FLOAT, false, sizeof(SpriteVertexShader), 16);
 
 	static const char *geometryAttributes[] = { "position", nullptr };
-	_geometryShader = OpenGL::ShaderGL::fromFiles("wme_geometry", geometryAttributes);
+	_geometryShader = OpenGL::Shader::fromFiles("wme_geometry", geometryAttributes);
 
 	static const char *shadowVolumeAttributes[] = { "position", nullptr };
-	_shadowVolumeShader = OpenGL::ShaderGL::fromFiles("wme_shadow_volume", shadowVolumeAttributes);
+	_shadowVolumeShader = OpenGL::Shader::fromFiles("wme_shadow_volume", shadowVolumeAttributes);
 
 	static const char *shadowMaskAttributes[] = { "position", nullptr };
-	_shadowMaskShader = OpenGL::ShaderGL::fromFiles("wme_shadow_mask", shadowMaskAttributes);
+	_shadowMaskShader = OpenGL::Shader::fromFiles("wme_shadow_mask", shadowMaskAttributes);
 
 	_transformStack.push_back(Math::Matrix4());
 	_transformStack.back().setToIdentity();
 
 	static const char *modelXAttributes[] = {"position", "texcoord", "normal", nullptr};
-	_modelXShader = OpenGL::ShaderGL::fromFiles("wme_modelx", modelXAttributes);
+	_modelXShader = OpenGL::Shader::fromFiles("wme_modelx", modelXAttributes);
 
 	setDefaultAmbientLightColor();
 
@@ -518,7 +529,7 @@ bool BaseRenderOpenGL3DShader::initRenderer(int width, int height, bool windowed
 		disableLight(i);
 	}
 
-	_windowed = windowed;
+	_windowed = !ConfMan.getBool("fullscreen");
 	_width = width;
 	_height = height;
 
@@ -544,8 +555,7 @@ bool BaseRenderOpenGL3DShader::initRenderer(int width, int height, bool windowed
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 	static const char *fadeAttributes[] = { "position", nullptr };
-	_fadeShader = OpenGL::ShaderGL::fromFiles("wme_fade", fadeAttributes);
-
+	_fadeShader = OpenGL::Shader::fromFiles("wme_fade", fadeAttributes);
 	_fadeShader->enableVertexAttribute("position", _fadeVBO, 2, GL_FLOAT, false, 8, 0);
 
 	glGenBuffers(1, &_lineVBO);
@@ -554,11 +564,11 @@ bool BaseRenderOpenGL3DShader::initRenderer(int width, int height, bool windowed
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 	static const char *lineAttributes[] = { "position", nullptr };
-	_lineShader = OpenGL::ShaderGL::fromFiles("wme_line", lineAttributes);
+	_lineShader = OpenGL::Shader::fromFiles("wme_line", lineAttributes);
 	_lineShader->enableVertexAttribute("position", _lineVBO, 2, GL_FLOAT, false, 8, 0);
 
 	static const char *flatShadowModelXAttributes[] = { "position", nullptr };
-	_flatShadowModelXShader = OpenGL::ShaderGL::fromFiles("wme_flat_shadow_modelx", flatShadowModelXAttributes);
+	_flatShadowModelXShader = OpenGL::Shader::fromFiles("wme_flat_shadow_modelx", flatShadowModelXAttributes);
 
 	_active = true;
 	// setup a proper state
@@ -572,12 +582,12 @@ bool Wintermute::BaseRenderOpenGL3DShader::flip() {
 }
 
 bool BaseRenderOpenGL3DShader::indicatorFlip() {
-	warning("BaseRenderOpenGL3DShader::indicatorFlip not yet implemented");
+	flip();
 	return true;
 }
 
 bool BaseRenderOpenGL3DShader::forcedFlip() {
-	warning("BaseRenderOpenGL3DShader::forcedFlip not yet implemented");
+	flip();
 	return true;
 }
 
@@ -632,17 +642,18 @@ bool BaseRenderOpenGL3DShader::setup3D(Camera3D *camera, bool force) {
 			_lastViewMatrix = viewMatrix;
 		}
 
-		FogParameters fogParameters;
+		bool fogEnabled;
+		uint32 fogColor;
+		float fogStart, fogEnd;
 
-		_gameRef->getFogParams(fogParameters);
-
-		if (fogParameters._enabled) {
+		_gameRef->getFogParams(&fogEnabled, &fogColor, &fogStart, &fogEnd);
+		if (fogEnabled) {
 			// TODO: Implement fog
 			GLfloat color[4];
-			color[0] = RGBCOLGetR(fogParameters._color) / 255.0f;
-			color[1] = RGBCOLGetG(fogParameters._color) / 255.0f;
-			color[2] = RGBCOLGetB(fogParameters._color) / 255.0f;
-			color[3] = RGBCOLGetA(fogParameters._color) / 255.0f;
+			color[0] = RGBCOLGetR(fogColor) / 255.0f;
+			color[1] = RGBCOLGetG(fogColor) / 255.0f;
+			color[2] = RGBCOLGetB(fogColor) / 255.0f;
+			color[3] = RGBCOLGetA(fogColor) / 255.0f;
 			debug(5, "BaseRenderOpenGL3DShader::setup3D fog not yet implemented! [%f %f %f %f]", color[0], color[1], color[2], color[3]);
 		} else {
 			// TODO: Disable fog in shader

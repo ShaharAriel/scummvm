@@ -55,7 +55,7 @@ void ScummEngine::loadCJKFont() {
 	_textSurfaceMultiplier = 1;
 	_newLineCharacter = 0;
 
-	_useMultiFont = 0;	// Korean Multi-Font
+	_useMultiFont = false;	// Korean Multi-Font
 
 	// Special case for Korean
 	if (isScummvmKorTarget()) {
@@ -179,7 +179,7 @@ void ScummEngine::loadKorFont() {
 	_useCJKMode = true;
 
 	if (_game.version < 7 || _game.id == GID_FT)
-		_useMultiFont = 1;
+		_useMultiFont = true;
 
 	if (_useMultiFont) {
 		debug("Loading Korean Multi Font System");
@@ -213,7 +213,7 @@ void ScummEngine::loadKorFont() {
 		}
 		if (_numLoadedFont == 0) {
 			warning("Cannot load any font for multi font");
-			_useMultiFont = 0;
+			_useMultiFont = false;
 		} else {
 			debug("%d fonts are loaded", _numLoadedFont);
 		}
@@ -943,6 +943,11 @@ void CharsetRendererV3::drawChar(int chr, Graphics::Surface &s, int x, int y) {
 }
 
 void CharsetRenderer::translateColor() {
+	// Don't do anything for v1 and v2 CGA and Hercules modes
+	// here (and v0 doesn't have any of these modes).
+	if (_vm->_game.version < 3)
+		return;
+
 	// Based on disassembly
 	if (_vm->_renderMode == Common::kRenderCGA) {
 		static const byte CGAtextColorMap[16] = {0,  3, 3, 3, 5, 5, 5,  15,
@@ -1985,7 +1990,7 @@ int CharsetRendererV7::draw2byte(byte *buffer, Common::Rect &clipRect, int x, in
 	return _origWidth + _spacing;
 }
 
-int CharsetRendererV7::drawChar(byte *buffer, Common::Rect &clipRect, int x, int y, int pitch, int16 col, TextStyleFlags flags, byte chr) {
+int CharsetRendererV7::drawCharV7(byte *buffer, Common::Rect &clipRect, int x, int y, int pitch, int16 col, TextStyleFlags flags, byte chr) {
 	if (!prepareDraw(chr))
 		return 0;
 
@@ -2095,9 +2100,9 @@ int CharsetRendererNut::draw2byte(byte *buffer, Common::Rect &clipRect, int x, i
 	return _current->draw2byte(buffer, clipRect, x, y, pitch, col, chr);
 }
 
-int CharsetRendererNut::drawChar(byte *buffer, Common::Rect &clipRect, int x, int y, int pitch, int16 col, TextStyleFlags flags, byte chr) {
+int CharsetRendererNut::drawCharV7(byte *buffer, Common::Rect &clipRect, int x, int y, int pitch, int16 col, TextStyleFlags flags, byte chr) {
 	assert(_current);
-	return _current->drawChar(buffer, clipRect, x, y, pitch, col, flags, chr);
+	return _current->drawCharV7(buffer, clipRect, x, y, pitch, col, flags, chr);
 }
 #endif
 

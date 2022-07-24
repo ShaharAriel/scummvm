@@ -39,7 +39,6 @@
 #include "ags/engine/ac/global_game.h"
 #include "ags/engine/ac/gui.h"
 #include "ags/engine/ac/lip_sync.h"
-#include "ags/engine/ac/object_cache.h"
 #include "ags/engine/ac/path_helper.h"
 #include "ags/engine/ac/route_finder.h"
 #include "ags/engine/ac/sys_events.h"
@@ -105,9 +104,10 @@ bool engine_init_backend() {
 }
 
 void winclosehook() {
-	_G(want_exit) = 1;
-	_G(abort_engine) = 1;
+	_G(want_exit) = true;
+	_G(abort_engine) = true;
 	_G(check_dynamic_sprites_at_exit) = 0;
+	AbortGame();
 }
 
 void engine_setup_window() {
@@ -346,6 +346,8 @@ void engine_init_audio() {
 }
 
 void engine_init_debug() {
+	if (_GP(usetup).show_fps)
+		_G(display_fps) = kFPS_Forced;
 	if ((_G(debug_flags) & (~DBG_DEBUGMODE)) > 0) {
 		_G(platform)->DisplayAlert("Engine debugging enabled.\n"
 		                           "\nNOTE: You have selected to enable one or more engine debugging options.\n"
@@ -508,7 +510,6 @@ void show_preload() {
 
 int engine_init_sprites() {
 	Debug::Printf(kDbgMsg_Info, "Initialize sprites");
-
 	HError err = _GP(spriteset).InitFile(SpriteFile::DefaultSpriteFileName, SpriteFile::DefaultSpriteIndexName);
 	if (!err) {
 		sys_main_shutdown();
@@ -520,6 +521,8 @@ int engine_init_sprites() {
 		return EXIT_ERROR;
 	}
 
+	if (_GP(usetup).SpriteCacheSize > 0)
+		_GP(spriteset).SetMaxCacheSize(_GP(usetup).SpriteCacheSize);
 	return 0;
 }
 
@@ -582,8 +585,8 @@ void engine_init_game_settings() {
 		_GP(game).chars[ee].baseline = -1;
 		_GP(game).chars[ee].walkwaitcounter = 0;
 		_GP(game).chars[ee].z = 0;
-		_G(charextra)[ee].xwas = INVALID_X;
-		_G(charextra)[ee].zoom = 100;
+		_GP(charextra)[ee].xwas = INVALID_X;
+		_GP(charextra)[ee].zoom = 100;
 		if (_GP(game).chars[ee].view >= 0) {
 			// set initial loop to 0
 			_GP(game).chars[ee].loop = 0;
@@ -591,10 +594,10 @@ void engine_init_game_settings() {
 			if (_GP(views)[_GP(game).chars[ee].view].loops[0].numFrames < 1)
 				_GP(game).chars[ee].loop = 1;
 		}
-		_G(charextra)[ee].process_idle_this_time = 0;
-		_G(charextra)[ee].invorder_count = 0;
-		_G(charextra)[ee].slow_move_counter = 0;
-		_G(charextra)[ee].animwait = 0;
+		_GP(charextra)[ee].process_idle_this_time = 0;
+		_GP(charextra)[ee].invorder_count = 0;
+		_GP(charextra)[ee].slow_move_counter = 0;
+		_GP(charextra)[ee].animwait = 0;
 	}
 
 	_G(our_eip) = -5;
@@ -736,7 +739,7 @@ void engine_init_game_settings() {
 	_GP(play).speech_textwindow_gui = _GP(game).options[OPT_TWCUSTOM];
 	if (_GP(play).speech_textwindow_gui == 0)
 		_GP(play).speech_textwindow_gui = -1;
-	strcpy(_GP(play).game_name, _GP(game).gamename);
+	snprintf(_GP(play).game_name, sizeof(_GP(play).game_name), "%s", _GP(game).gamename);
 	_GP(play).lastParserEntry[0] = 0;
 	_GP(play).follow_change_room_timer = 150;
 	for (ee = 0; ee < MAX_ROOM_BGFRAMES; ee++)
@@ -793,10 +796,13 @@ void engine_prepare_to_start_game() {
 
 	engine_setup_scsystem_auxiliary();
 
-#if AGS_PLATFORM_OS_ANDROID
-	if (psp_load_latest_savegame)
-		selectLatestSavegame();
+	if (_GP(usetup).load_latest_save) {
+#ifndef AGS_PLATFORM_SCUMMVM
+		int slot = GetLastSaveSlot();
+		if (slot >= 0)
+			loadSaveGameOnStartup = get_save_game_path(slot);
 #endif
+	}
 }
 
 // TODO: move to test unit
@@ -962,11 +968,9 @@ void engine_read_config(ConfigTree &cfg) {
 	        Path::ComparePaths(user_cfg_file, user_global_cfg_file) != 0)
 		IniUtil::Read(user_cfg_file, cfg);
 
-	// Apply overriding options from mobile port settings
+	// Apply overriding options from platform settings
 	// TODO: normally, those should be instead stored in the same config file in a uniform way
-	// NOTE: the variable is historically called "ignore" but we use it in "override" meaning here
-	if (_G(psp_ignore_acsetup_cfg_file))
-		override_config_ext(cfg);
+	override_config_ext(cfg);
 }
 
 // Gathers settings from all available sources into single ConfigTree
@@ -1172,7 +1176,7 @@ int initialize_engine(const ConfigTree &startup_opts) {
 	// Configure game window after renderer was initialized
 	engine_setup_window();
 
-	SetMultitasking(0);
+	SetMultitasking(_GP(usetup).multitasking);
 
 	sys_window_show_cursor(false); // hide the system cursor
 

@@ -238,6 +238,14 @@ public:
 		return _pointer != r.get();
 	}
 
+	bool operator==(std::nullptr_t) const {
+		return _pointer == nullptr;
+	}
+
+	bool operator!=(std::nullptr_t) const {
+		return _pointer != nullptr;
+	}
+
 	/**
 	 * Implicit conversion operator to bool for convenience, to make
 	 * checks like "if (sharedPtr) ..." possible.
@@ -560,6 +568,15 @@ public:
 	typedef T &ReferenceType;
 
 	explicit ScopedPtr(PointerType o = nullptr) : _pointer(o) {}
+	ScopedPtr(std::nullptr_t) : _pointer(nullptr) {}
+
+	/**
+	 * Move constructor
+	 */
+	template<class T2>
+	ScopedPtr(ScopedPtr<T2> &&o) : _pointer(o._pointer) {
+		o._pointer = nullptr;
+        }
 
 	ReferenceType operator*() const { return *_pointer; }
 	PointerType operator->() const { return _pointer; }
@@ -580,6 +597,25 @@ public:
 	void reset(PointerType o = nullptr) {
 		DL()(_pointer);
 		_pointer = o;
+	}
+
+	/**
+	 * Affectation with nullptr
+	 */
+	ScopedPtr &operator=(std::nullptr_t) {
+		reset(nullptr);
+	}
+
+	/**
+	 * Replaces the ScopedPtr with another scoped ScopedPtr.
+	 */
+	template<class T2>
+	ScopedPtr &operator=(ScopedPtr<T2> &&other) {
+		PointerType oldPointer = _pointer;
+		_pointer = other._pointer;
+		other._pointer = nullptr;
+		DL()(oldPointer);
+		return *this;
 	}
 
 	/**

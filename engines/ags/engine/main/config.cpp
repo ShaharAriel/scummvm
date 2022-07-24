@@ -244,7 +244,7 @@ static void read_legacy_graphics_config(const ConfigTree &cfg) {
 		break;
 		case kScreenDef_ByGameScaling:
 		{
-			int src_scale;
+			int src_scale = 0;
 			is_windowed ?
 				parse_legacy_scaling_option(CfgReadString(cfg, "graphics", "game_scale_win"), src_scale) :
 				parse_legacy_scaling_option(CfgReadString(cfg, "graphics", "game_scale_fs"), src_scale);
@@ -262,80 +262,23 @@ static void read_legacy_graphics_config(const ConfigTree &cfg) {
 	_GP(usetup).Screen.Params.RefreshRate = CfgReadInt(cfg, "misc", "refresh");
 }
 
-
 void override_config_ext(ConfigTree &cfg) {
-	// Mobile ports always run in fullscreen mode
-#if AGS_PLATFORM_OS_ANDROID || AGS_PLATFORM_OS_IOS
-	CfgWriteInt(cfg, "graphics", "windowed", 0);
-#endif
-
-	// psp_gfx_renderer - rendering mode
-	//    * 0 - software renderer
-	//    * 1 - hardware, render to screen
-	//    * 2 - hardware, render to texture
-	if (_G(psp_gfx_renderer) == 0) {
-		CfgWriteString(cfg, "graphics", "driver", "Software");
-		CfgWriteInt(cfg, "graphics", "render_at_screenres", 1);
-	} else {
-		CfgWriteString(cfg, "graphics", "driver", "OGL");
-		CfgWriteInt(cfg, "graphics", "render_at_screenres", _G(psp_gfx_renderer) == 1);
-	}
-
-	// psp_gfx_scaling - scaling style:
-	//    * 0 - no scaling
-	//    * 1 - stretch and preserve aspect ratio
-	//    * 2 - stretch to whole screen
-	if (_G(psp_gfx_scaling) == 0)
-		CfgWriteString(cfg, "graphics", "game_scale_fs", "1");
-	else if (_G(psp_gfx_scaling) == 1)
-		CfgWriteString(cfg, "graphics", "game_scale_fs", "proportional");
-	else
-		CfgWriteString(cfg, "graphics", "game_scale_fs", "stretch");
-
-	// psp_gfx_smoothing - scaling filter:
-	//    * 0 - nearest-neighbour
-	//    * 1 - linear
-	if (_G(psp_gfx_smoothing) == 0)
-		CfgWriteString(cfg, "graphics", "filter", "StdScale");
-	else
-		CfgWriteString(cfg, "graphics", "filter", "Linear");
-
-	// psp_gfx_super_sampling - enable super sampling
-	//    * 0 - x1
-	//    * 1 - x2
-	if (_G(psp_gfx_renderer) == 2)
-		CfgWriteInt(cfg, "graphics", "supersampling", _G(psp_gfx_super_sampling) + 1);
-	else
-		CfgWriteInt(cfg, "graphics", "supersampling", 0);
-
-	// psp_gfx_rotation - scaling style:
-	//    * 0 - unlocked, let the user rotate as wished.
-	//    * 1 - portrait
-	//    * 2 - landscape
-	CfgWriteInt(cfg, "graphics", "rotation", _G(psp_rotation));
-
-#if AGS_PLATFORM_OS_ANDROID
-	// config_mouse_control_mode - enable relative mouse mode
-	//    * 1 - relative mouse touch controls
-	//    * 0 - direct touch mouse control
-	CfgWriteInt(cfg, "mouse", "control_enabled", config_mouse_control_mode);
-#endif
-
-	CfgWriteInt(cfg, "misc", "antialias", _G(psp_gfx_smooth_sprites) != 0);
-	CfgWriteString(cfg, "language", "translation", _G(psp_translation));
-	CfgWriteInt(cfg, "misc", "clear_cache_on_room_change", _G(psp_clear_cache_on_room_change) != 0);
+	_G(platform)->ReadConfiguration(cfg);
 }
 
 void apply_config(const ConfigTree &cfg) {
+	// Legacy graphics settings has to be translated into new options;
+	// they must be read first, to let newer options override them, if ones are present
+	read_legacy_graphics_config(cfg);
+
 	{
+		// Audio options
 		_GP(usetup).audio_enabled = CfgReadBoolInt(cfg, "sound", "enabled", _GP(usetup).audio_enabled);
 		_GP(usetup).audio_driver = CfgReadString(cfg, "sound", "driver");
+		// This option is backwards (usevox is 0 if no_speech_pack)
+		_GP(usetup).no_speech_pack = !CfgReadBoolInt(cfg, "sound", "usespeech", true);
 
-		// Legacy graphics settings has to be translated into new options;
-		// they must be read first, to let newer options override them, if ones are present
-		read_legacy_graphics_config(cfg);
-
-		// Graphics mode
+		// Graphics mode and options
 		_GP(usetup).Screen.DriverID = CfgReadString(cfg, "graphics", "driver", _GP(usetup).Screen.DriverID);
 		_GP(usetup).Screen.Windowed = CfgReadBoolInt(cfg, "graphics", "windowed", _GP(usetup).Screen.Windowed);
 		_GP(usetup).Screen.FsSetup =
@@ -343,16 +286,11 @@ void apply_config(const ConfigTree &cfg) {
 		_GP(usetup).Screen.WinSetup =
 			parse_window_mode(CfgReadString(cfg, "graphics", "window", "default"), true, _GP(usetup).Screen.WinSetup);
 
-		// TODO: move to config overrides (replace values during config load)
-#if AGS_PLATFORM_OS_MACOS
-		_GP(usetup).Screen.Filter.ID = "none";
-#else
 		_GP(usetup).Screen.Filter.ID = CfgReadString(cfg, "graphics", "filter", "StdScale");
 		_GP(usetup).Screen.FsGameFrame =
 			parse_scaling_option(CfgReadString(cfg, "graphics", "game_scale_fs", "proportional"), _GP(usetup).Screen.FsGameFrame);
 		_GP(usetup).Screen.WinGameFrame =
 			parse_scaling_option(CfgReadString(cfg, "graphics", "game_scale_win", "round"), _GP(usetup).Screen.WinGameFrame);
-#endif
 
 		_GP(usetup).Screen.Params.RefreshRate = CfgReadInt(cfg, "graphics", "refresh");
 		_GP(usetup).Screen.Params.VSync = CfgReadBoolInt(cfg, "graphics", "vsync");
@@ -369,21 +307,27 @@ void apply_config(const ConfigTree &cfg) {
 #endif
 		_GP(usetup).enable_antialiasing = CfgReadBoolInt(cfg, "misc", "antialias");
 
-		// This option is backwards (usevox is 0 if no_speech_pack)
-		_GP(usetup).no_speech_pack = !CfgReadBoolInt(cfg, "sound", "usespeech", true);
-
-		_GP(usetup).clear_cache_on_room_change = CfgReadBoolInt(cfg, "misc", "clear_cache_on_room_change", _GP(usetup).clear_cache_on_room_change);
+		// Custom paths
+		_GP(usetup).load_latest_save = CfgReadBoolInt(cfg, "misc", "load_latest_save", _GP(usetup).load_latest_save);
 		_GP(usetup).user_data_dir = CfgReadString(cfg, "misc", "user_data_dir");
 		_GP(usetup).shared_data_dir = CfgReadString(cfg, "misc", "shared_data_dir");
+		_GP(usetup).show_fps = CfgReadBoolInt(cfg, "misc", "show_fps");
 
-		_GP(usetup).translation = CfgReadString(cfg, "language", "translation");
+		// Translation / localization
+		Common::String translation;
+		if (ConfMan.getActiveDomain()->tryGetVal("translation", translation) && !translation.empty())
+			_GP(usetup).translation = translation;
+		else
+			_GP(usetup).translation = CfgReadString(cfg, "language", "translation");
 
+		// Resource caches and options
+		_GP(usetup).clear_cache_on_room_change = CfgReadBoolInt(cfg, "misc", "clear_cache_on_room_change", _GP(usetup).clear_cache_on_room_change);
 		int cache_size_kb = CfgReadInt(cfg, "misc", "cachemax", DEFAULTCACHESIZE_KB);
 		if (cache_size_kb > 0)
-			_GP(spriteset).SetMaxCacheSize((size_t)cache_size_kb * 1024);
+			_GP(usetup).SpriteCacheSize = cache_size_kb * 1024;
 
+		// Mouse options
 		_GP(usetup).mouse_auto_lock = CfgReadBoolInt(cfg, "mouse", "auto_lock");
-
 		_GP(usetup).mouse_speed = CfgReadFloat(cfg, "mouse", "speed", 1.f);
 		if (_GP(usetup).mouse_speed <= 0.f)
 			_GP(usetup).mouse_speed = 1.f;
@@ -405,6 +349,10 @@ void apply_config(const ConfigTree &cfg) {
 			}
 		}
 
+		// Various system options
+		_GP(usetup).multitasking = CfgReadInt(cfg, "misc", "multitasking", 0) != 0;
+
+		// User's overrides and hacks
 		_GP(usetup).override_multitasking = CfgReadInt(cfg, "override", "multitasking", -1);
 		String override_os = CfgReadString(cfg, "override", "os");
 		_GP(usetup).override_script_os = -1;
@@ -418,6 +366,8 @@ void apply_config(const ConfigTree &cfg) {
 			_GP(usetup).override_script_os = eOS_Mac;
 		}
 		_GP(usetup).override_upscale = CfgReadBoolInt(cfg, "override", "upscale", _GP(usetup).override_upscale);
+		_GP(usetup).key_save_game = CfgReadInt(cfg, "override", "save_game_key", 0);
+		_GP(usetup).key_restore_game = CfgReadInt(cfg, "override", "restore_game_key", 0);
 	}
 
 	// Apply logging configuration

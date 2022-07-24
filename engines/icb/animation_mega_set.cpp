@@ -40,6 +40,7 @@
 #include "engines/icb/common/px_features.h"
 #include "engines/icb/res_man.h"
 
+#include "common/str.h"
 #include "common/util.h"
 
 namespace ICB {
@@ -227,29 +228,25 @@ void _vox_image::___init(const char *chr, const char *set, __weapon weapon) {
 }
 
 void _vox_image::MakeAnimEntry(int32 i) {
-// make name
+	Common::String strName;
 
-	char name[ANIM_NAME_STR_LEN];
-	int32 len;
+	strName = Common::String::format("%s%s.rab", (const char *)image_path, (const char *)master_anim_name_table[i].name);
 
-	len = sprintf(name, "%s%s.rab", (const char *)image_path, (const char *)master_anim_name_table[i].name);
+	if (strName.size() > ANIM_NAME_STR_LEN) {
+		Fatal_error("_vox_image::___init [%s] string too long", strName.c_str());
+	}
+	strcpy(anim_name[i], strName.c_str());
 
-	if (len > ANIM_NAME_STR_LEN)
-		Fatal_error("_vox_image::___init [%s] string too long", name);
-	strcpy(anim_name[i], name);
+	anim_name_hash[i] = HashString(anim_name[i]);
 
+	strName = Common::String::format("%s%s.raj", (const char *)image_path, (const char *)master_anim_name_table[i].name);
 
-	anim_name_hash[i] = HashString(name);
+	if (strName.size() > ANIM_NAME_STR_LEN) {
+		Fatal_error("_vox_image::___init [%s] string too long", strName.c_str());
+	}
+	strcpy(info_name[i], strName.c_str());
 
-
-	len = sprintf(name, "%s%s.raj", (const char *)image_path, (const char *)master_anim_name_table[i].name);
-
-	if (len > ANIM_NAME_STR_LEN)
-		Fatal_error("_vox_image::___init [%s] string too long", name);
-	strcpy(info_name[i], name);
-
-
-	info_name_hash[i] = HashString(name);
+	info_name_hash[i] = HashString(info_name[i]);
 
 	// do the test file
 	anim_table[i] = (int8)(rs_anims->Test_file(get_anim_name(i), anim_name_hash[i], base_path, base_path_hash));

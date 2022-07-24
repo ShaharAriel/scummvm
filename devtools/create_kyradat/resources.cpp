@@ -38,6 +38,7 @@
 #include "resources/lok_dos_oldfloppy.h"
 #include "resources/lok_dos_oldfloppy_russian.h"
 #include "resources/lok_dos_spanish.h"
+#include "resources/lok_dos_korean.h"
 #include "resources/lok_dos_chinese_trad.h"
 
 #include "resources/lok_dos_cd.h"
@@ -103,6 +104,7 @@
 #include "resources/mr_dos_cd_italian.h"
 #include "resources/mr_dos_cd_spanish.h"
 #include "resources/mr_dos_cd_russian.h"
+#include "resources/mr_dos_cd_hebrew.h"
 #include "resources/mr_dos_cd_chinese_simplified.h"
 #include "resources/mr_dos_cd_chinese_trad.h"
 
@@ -438,6 +440,30 @@ static const ResourceProvider resourceProviders[] = {
 	{ k1ConfigStrings, kKyra1, kPlatformDOS, kNoSpecial, ES_ESP, &k1ConfigStringsDOSSpanishProvider },
 	{ k1TwoByteFontLookupTable, kKyra1, kPlatformDOS, kNoSpecial, ES_ESP, &k1TwoByteFontLookupTableDOSProvider },
 	{ k1CreditsStrings, kKyra1, kPlatformDOS, kNoSpecial, ES_ESP, &k1k1CreditsStringsDummyDOSProvider },
+	{ k1IntroStrings, kKyra1, kPlatformDOS, kNoSpecial, KO_KOR, &k1IntroStringsDOSKoreanProvider },
+	{ k1ItemNames, kKyra1, kPlatformDOS, kNoSpecial, KO_KOR, &k1ItemNamesDOSKoreanProvider },
+	{ k1TakenStrings, kKyra1, kPlatformDOS, kNoSpecial, KO_KOR, &k1TakenStringsDOSKoreanProvider },
+	{ k1PlacedStrings, kKyra1, kPlatformDOS, kNoSpecial, KO_KOR, &k1PlacedStringsDOSKoreanProvider },
+	{ k1DroppedStrings, kKyra1, kPlatformDOS, kNoSpecial, KO_KOR, &k1DroppedStringsDOSKoreanProvider },
+	{ k1NoDropStrings, kKyra1, kPlatformDOS, kNoSpecial, KO_KOR, &k1NoDropStringsDOSKoreanProvider },
+	{ k1PutDownString, kKyra1, kPlatformDOS, kNoSpecial, KO_KOR, &k1PutDownStringDOSKoreanProvider },
+	{ k1WaitAmuletString, kKyra1, kPlatformDOS, kNoSpecial, KO_KOR, &k1WaitAmuletStringDOSKoreanProvider },
+	{ k1BlackJewelString, kKyra1, kPlatformDOS, kNoSpecial, KO_KOR, &k1BlackJewelStringDOSKoreanProvider },
+	{ k1HealingTipString, kKyra1, kPlatformDOS, kNoSpecial, KO_KOR, &k1HealingTipStringDOSKoreanProvider },
+	{ k1PoisonGoneString, kKyra1, kPlatformDOS, kNoSpecial, KO_KOR, &k1PoisonGoneStringDOSKoreanProvider },
+	{ k1ThePoisonStrings, kKyra1, kPlatformDOS, kNoSpecial, KO_KOR, &k1ThePoisonStringsDOSKoreanProvider },
+	{ k1FluteStrings, kKyra1, kPlatformDOS, kNoSpecial, KO_KOR, &k1FluteStringsDOSKoreanProvider },
+	{ k1WispJewelStrings, kKyra1, kPlatformDOS, kNoSpecial, KO_KOR, &k1WispJewelStringsDOSKoreanProvider },
+	{ k1MagicJewelStrings, kKyra1, kPlatformDOS, kNoSpecial, KO_KOR, &k1MagicJewelStringsDOSKoreanProvider },
+	{ k1FlaskFullString, kKyra1, kPlatformDOS, kNoSpecial, KO_KOR, &k1FlaskFullStringDOSKoreanProvider },
+	{ k1FullFlaskString, kKyra1, kPlatformDOS, kNoSpecial, KO_KOR, &k1FullFlaskStringDOSKoreanProvider },
+	{ k1OutroHomeString, kKyra1, kPlatformDOS, kNoSpecial, KO_KOR, &k1OutroHomeStringDOSKoreanProvider },
+	{ k1VeryCleverString, kKyra1, kPlatformDOS, kNoSpecial, KO_KOR, &k1VeryCleverStringDOSKoreanProvider },
+	{ k1GUIStrings, kKyra1, kPlatformDOS, kNoSpecial, KO_KOR, &k1GUIStringsDOSKoreanProvider },
+	{ k1NewGameString, kKyra1, kPlatformDOS, kNoSpecial, KO_KOR, &k1NewGameStringDOSKoreanProvider },
+	{ k1ConfigStrings, kKyra1, kPlatformDOS, kNoSpecial, KO_KOR, &k1ConfigStringsDOSKoreanProvider },
+	{ k1TwoByteFontLookupTable, kKyra1, kPlatformDOS, kNoSpecial, KO_KOR, &k1TwoByteFontLookupTableDOSKoreanProvider },
+	{ k1CreditsStrings, kKyra1, kPlatformDOS, kNoSpecial, KO_KOR, &k1CreditsStringsDOSKoreanProvider },
 	{ k1IntroStrings, kKyra1, kPlatformDOS, kNoSpecial, ZH_TWN, &k1IntroStringsDOSChineseTradProvider },
 	{ k1ItemNames, kKyra1, kPlatformDOS, kNoSpecial, ZH_TWN, &k1ItemNamesDOSChineseTradProvider },
 	{ k1TakenStrings, kKyra1, kPlatformDOS, kNoSpecial, ZH_TWN, &k1TakenStringsDOSChineseTradProvider },
@@ -1148,6 +1174,7 @@ static const ResourceProvider resourceProviders[] = {
 	{ k3MainMenuStrings, kKyra3, kPlatformDOS, kTalkieVersion, IT_ITA, &k3MainMenuStringsDOSCDItalianProvider },
 	{ k3MainMenuStrings, kKyra3, kPlatformDOS, kTalkieVersion, ES_ESP, &k3MainMenuStringsDOSCDSpanishProvider },
 	{ k3MainMenuStrings, kKyra3, kPlatformDOS, kTalkieVersion, RU_RUS, &k3MainMenuStringsDOSCDRussianProvider },
+	{ k3MainMenuStrings, kKyra3, kPlatformDOS, kTalkieVersion, HE_ISR, &k3MainMenuStringsDOSCDHebrewProvider },
 	{ k3MainMenuStrings, kKyra3, kPlatformDOS, kTalkieVersion, ZH_CHN, &k3MainMenuStringsDOSCDChineseSmplProvider },
 	{ k3MainMenuStrings, kKyra3, kPlatformDOS, kTalkieVersion, ZH_TWN, &k3MainMenuStringsDOSCDChineseTradProvider },
 	{ k3MusicFiles, kKyra3, kPlatformDOS, kTalkieVersion, UNK_LANG, &k3MusicFilesDOSCDProvider },
@@ -1163,6 +1190,7 @@ static const ResourceProvider resourceProviders[] = {
 	{ k2FontData, kKyra3, kPlatformDOS, kTalkieVersion, IT_ITA, &k3DummyDataDOSCDProvider },
 	{ k2FontData, kKyra3, kPlatformDOS, kTalkieVersion, ES_ESP, &k3DummyDataDOSCDProvider },
 	{ k2FontData, kKyra3, kPlatformDOS, kTalkieVersion, RU_RUS, &k3DummyDataDOSCDProvider },
+	{ k2FontData, kKyra3, kPlatformDOS, kTalkieVersion, HE_ISR, &k3DummyDataDOSCDProvider },
 	{ k2FontData, kKyra3, kPlatformDOS, kTalkieVersion, ZH_CHN, &k3FontDataDOSCDChineseSmplProvider },
 	{ k2FontData, kKyra3, kPlatformDOS, kTalkieVersion, ZH_TWN, &k3FontDataDOSCDChineseTradProvider },
 	{ k3VqaSubtitlesIntro, kKyra3, kPlatformDOS, kTalkieVersion, EN_ANY, &k3VqaSubtitlesIntroDOSCDEnglishProvider },
@@ -1171,6 +1199,7 @@ static const ResourceProvider resourceProviders[] = {
 	{ k3VqaSubtitlesIntro, kKyra3, kPlatformDOS, kTalkieVersion, IT_ITA, &k3VqaSubtitlesIntroDOSCDItalianProvider },
 	{ k3VqaSubtitlesIntro, kKyra3, kPlatformDOS, kTalkieVersion, ES_ESP, &k3VqaSubtitlesIntroDOSCDSpanishProvider },
 	{ k3VqaSubtitlesIntro, kKyra3, kPlatformDOS, kTalkieVersion, RU_RUS, &k3VqaSubtitlesIntroDOSCDRussianProvider },
+	{ k3VqaSubtitlesIntro, kKyra3, kPlatformDOS, kTalkieVersion, HE_ISR, &k3VqaSubtitlesIntroDOSCDHebrewProvider },
 	{ k3VqaSubtitlesIntro, kKyra3, kPlatformDOS, kTalkieVersion, ZH_CHN, &k3VqaSubtitlesIntroDOSCDChineseSmplProvider },
 	{ k3VqaSubtitlesIntro, kKyra3, kPlatformDOS, kTalkieVersion, ZH_TWN, &k3VqaSubtitlesIntroDOSCDChineseTradProvider },
 	{ k3VqaSubtitlesBoat, kKyra3, kPlatformDOS, kTalkieVersion, EN_ANY, &k3VqaSubtitlesBoatDOSCDEnglishProvider },
@@ -1179,6 +1208,7 @@ static const ResourceProvider resourceProviders[] = {
 	{ k3VqaSubtitlesBoat, kKyra3, kPlatformDOS, kTalkieVersion, IT_ITA, &k3VqaSubtitlesBoatDOSCDItalianProvider },
 	{ k3VqaSubtitlesBoat, kKyra3, kPlatformDOS, kTalkieVersion, ES_ESP, &k3VqaSubtitlesBoatDOSCDSpanishProvider },
 	{ k3VqaSubtitlesBoat, kKyra3, kPlatformDOS, kTalkieVersion, RU_RUS, &k3VqaSubtitlesBoatDOSCDRussianProvider },
+	{ k3VqaSubtitlesBoat, kKyra3, kPlatformDOS, kTalkieVersion, HE_ISR, &k3VqaSubtitlesBoatDOSCDHebrewProvider },
 	{ k3VqaSubtitlesBoat, kKyra3, kPlatformDOS, kTalkieVersion, ZH_CHN, &k3VqaSubtitlesBoatDOSCDChineseSmplProvider },
 	{ k3VqaSubtitlesBoat, kKyra3, kPlatformDOS, kTalkieVersion, ZH_TWN, &k3VqaSubtitlesBoatDOSCDChineseTradProvider },
 	{ kEoBBaseNpcPresetsNames, kEoB1, kPlatformDOS, kNoSpecial, EN_ANY, &kEoB1NpcPresetsNamesDOSEnglishProvider },

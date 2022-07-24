@@ -263,7 +263,7 @@ bool BaseRenderer::setup2D(bool Force) {
 
 #ifdef ENABLE_WME3D
 //////////////////////////////////////////////////////////////////////////
-bool BaseRenderer::setup3D(Camera3D* camera, bool force) {
+bool BaseRenderer::setup3D(Camera3D *camera, bool force) {
 	return STATUS_FAILED;
 }
 #endif
@@ -281,10 +281,10 @@ bool BaseRenderer::drawLine(int x1, int y1, int x2, int y2, uint32 color) {
 //////////////////////////////////////////////////////////////////////////
 bool BaseRenderer::drawRect(int x1, int y1, int x2, int y2, uint32 color, int width) {
 	for (int i = 0; i < width; i++) {
-		drawLine(x1 + i, y1 + i, x2 - i,   y1 + i,   color); // up
+		drawLine(x1 + i, y1 + i, x2 - i,     y1 + i, color); // up
 		drawLine(x1 + i, y2 - i, x2 - i + 1, y2 - i, color); // down
 
-		drawLine(x1 + i, y1 + i, x1 + i, y2 - i,   color); // left
+		drawLine(x1 + i, y1 + i, x1 + i, y2 - i,     color); // left
 		drawLine(x2 - i, y1 + i, x2 - i, y2 - i + 1, color); // right
 	}
 	return STATUS_OK;

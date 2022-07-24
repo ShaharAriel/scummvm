@@ -425,7 +425,7 @@ void ScummEngine_v5::o5_actorOps() {
 	// the code below just skips the extra script code.
 	if (_game.id == GID_MONKEY2 && _game.platform == Common::kPlatformFMTowns &&
 		vm.slot[_currentScript].number == 45 && _currentRoom == 45 &&
-		(_scriptPointer - _scriptOrgPointer == 0xA9)) {
+		(_scriptPointer - _scriptOrgPointer == 0xA9) && _enableEnhancements) {
 		_scriptPointer += 0xCF - 0xA1;
 		writeVar(32811, 0); // clear bit 43
 		return;
@@ -504,6 +504,20 @@ void ScummEngine_v5::o5_actorOps() {
 			j = getVarOrDirectByte(PARAM_2);
 			assertRange(0, i, 31, "o5_actorOps: palette slot");
 
+			// WORKAROUND: In the corridors of Castle Brunwald,
+			// there is a 'continuity error' with the Nazi guards
+			// in the FM-TOWNS version. They still have their
+			// palette override from the EGA version, making them
+			// appear in gray there, although their uniforms are
+			// green when you fight them or meet them again in
+			// the zeppelin. The PC VGA version fixed this.
+
+			if (_game.id == GID_INDY3 && _game.platform == Common::kPlatformFMTowns &&
+				(a->_costume == 23 || a->_costume == 28 || a->_costume == 29) &&
+				(_currentRoom == 20 || _currentRoom == 28 || _currentRoom == 32) && _enableEnhancements) {
+				break;
+			}
+
 			// WORKAROUND: The smoke animation is the same as
 			// what's used for the voodoo lady's cauldron. But
 			// for some reason, the colors changed between the
@@ -524,6 +538,18 @@ void ScummEngine_v5::o5_actorOps() {
 					i = 3;
 			}
 
+			// WORKAROUND for original bug. The original interpreter has a color fix for CGA mode which can be seen
+			// in Actor::setActorCostume(). Sometimes (e. g. when Bobbin walks out of the darkened tent) the actor
+			// colors are changed via script without taking into account the need to repeat the color fix.
+			if (_game.id == GID_LOOM && _renderMode == Common::kRenderCGA && act == 1) {
+				if (i == 6 && j == 6)
+					j = 5;
+				else if (i == 7 && j == 7)
+					j = 15;
+				else if (i == 8 && j == 8)
+					j = 0;
+			}
+
 			// Setting palette color 0 to 0 appears to be a way to
 			// reset the actor palette in the TurboGrafx-16 version
 			// of Loom. It's used in several places, but the only
@@ -533,7 +559,7 @@ void ScummEngine_v5::o5_actorOps() {
 			if (_game.id == GID_LOOM && _game.platform == Common::kPlatformPCEngine && i == 0 && j == 0) {
 				for (int k = 0; k < 32; k++)
 					a->setPalette(k, 0xFF);
-			} else {
+			} else {	
 				a->setPalette(i, j);
 			}
 			break;
@@ -831,6 +857,15 @@ void ScummEngine_v5::o5_cursorCommand() {
 void ScummEngine_v5::o5_cutscene() {
 	int args[NUM_SCRIPT_LOCAL];
 	getWordVararg(args);
+
+	// WORKAROUND: In Indy 3, the cutscene where Indy and his father escape
+	// from the zeppelin with the biplane is missing the `[1]` parameter
+	// which disables the verb interface. For some reason, this only causes
+	// a problem on the FM-TOWNS version, though... also happens under UNZ.
+	if (_game.id == GID_INDY3 && _game.platform == Common::kPlatformFMTowns && _currentRoom == 80 && vm.slot[_currentScript].number == 201 && args[0] == 0 && _enableEnhancements) {
+		args[0] = 1;
+	}
+
 	beginCutscene(args);
 }
 
@@ -949,6 +984,33 @@ void ScummEngine_v5::o5_drawObject() {
 		default:
 			error("o5_drawObject: unknown subopcode %d", _opcode & 0x1F);
 		}
+	}
+
+	// WORKAROUND: Captain Dread's head will glitch if you have already talked to him,
+	// give him an object and then immediately talk to him again ("It's me again.").
+	// This is because the original script forgot to check Bit[129] (= already facing
+	// Guybrush) in that particular case, and so Dread would always try to turn and
+	// face Guybrush even if he's already looking at him.  drawObject() should never
+	// be called if Bit[129] is set in that script, so if it does happen, it means
+	// the check was missing, and so we ignore the next 32 bytes of Dread's reaction.
+	if (_game.id == GID_MONKEY2 && _currentRoom == 22 && vm.slot[_currentScript].number == 201 && obj == 237 && state == 1 && readVar(0x8000 + 129) == 1 && _enableEnhancements) {
+		_scriptPointer += 32;
+		return;
+	}
+
+	// WORKAROUND: In Indy3, the first close-up frame of Indy's reaction after drinking
+	// from the Grail is never shown; it always starts at the second step, with Indy
+	// already appearing a bit older. This is a bit unfortunate, especially if you
+	// picked up the real Grail. This was probably done as a way to unconditionally
+	// reset the animation if it's already been played, but we can just do an
+	// unconditional reset of all previous frames instead, restoring the first one.
+	if (_game.id == GID_INDY3 && _roomResource == 87 && vm.slot[_currentScript].number == 200 && obj == 899 && state == 1 && VAR(VAR_TIMER_NEXT) != 12 && _enableEnhancements) {
+		i = _numLocalObjects - 1;
+		do {
+			if (_objs[i].obj_nr)
+				putState(_objs[i].obj_nr, 0);
+		} while (--i);
+		return;
 	}
 
 	idx = getObjectIndex(obj);
@@ -1282,13 +1344,13 @@ void ScummEngine_v5::o5_isScriptRunning() {
 	getResultPos();
 	setResult(isScriptRunning(getVarOrDirectByte(PARAM_1)));
 
-    // WORKAROUND bug #346 (also occurs in original): Object stopped with active cutscene
-    // In script 204 room 25 (Cannibal Village) a crash can occur when you are
-    // expected to give something to the cannibals, but instead look at certain
-    // items like the compass or kidnap note. Those inventory items contain little
-    // cutscenes and are abrubtly stopped by the endcutscene in script 204 at 0x0060.
-    // This patch changes the the result of isScriptRunning(164) to also wait for
-    // any inventory scripts that are in a cutscene state, preventing the crash.
+	// WORKAROUND bug #346 (also occurs in original): Object stopped with active cutscene
+	// In script 204 room 25 (Cannibal Village) a crash can occur when you are
+	// expected to give something to the cannibals, but instead look at certain
+	// items like the compass or kidnap note. Those inventory items contain little
+	// cutscenes and are abrubtly stopped by the endcutscene in script 204 at 0x0060.
+	// This patch changes the the result of isScriptRunning(164) to also wait for
+	// any inventory scripts that are in a cutscene state, preventing the crash.
 	if (_game.id == GID_MONKEY && vm.slot[_currentScript].number == 204 && _currentRoom == 25) {
 		ScriptSlot *ss = vm.slot;
 		for (int i = 0; i < NUM_SCRIPT_SLOT; i++, ss++) {
@@ -1363,9 +1425,22 @@ void ScummEngine_v5::o5_isEqual() {
 	// are only played on type 5 soundcards. However, there is at least one
 	// other sound effect (the bartender spitting) which is only played on
 	// type 3 soundcards.
-
 	if (_game.id == GID_MONKEY2 && var == VAR_SOUNDCARD && b == 5)
 		b = a;
+
+	// WORKAROUND: The Ultimate Talkie edition of Monkey Island 2 doesn't
+	// check the proper objects when you sell back the hub cap and the
+	// pirate hat to the antique dealer on Booty Island, making Guybrush
+	// silent when he asks about these two particular objects.
+	//
+	// Not using `_enableEnhancements`, since this small oversight only
+	// exists in this fan-made edition which was made for enhancements.
+	if (_game.id == GID_MONKEY2 && _roomResource == 48 && vm.slot[_currentScript].number == 215 && a == vm.localvar[_currentScript][0] && strcmp(_game.variant, "SE Talkie") == 0) {
+		if (a == 550 && b == 530)
+			b = 550;
+		else if (a == 549 && b == 529)
+			b = 549;
+	}
 
 	// HACK: To allow demo script of Maniac Mansion V2
 	// The camera x position is only 100, instead of 180, after game title name scrolls.
@@ -2401,6 +2476,14 @@ void ScummEngine_v5::o5_stopSound() {
 		return;
 	}
 
+	// WORKAROUND: In MM NES, Wendy's CD player script forgets to update the
+	// music status variable when you stop it. Wendy's music would then
+	// resume when leaving some rooms (such as room 3 with the chandelier),
+	// even though her CD player was off.
+	if (_game.id == GID_MANIAC && _game.platform == Common::kPlatformNES && sound == 75 && vm.slot[_currentScript].number == 50 && VAR(VAR_EGO) == 6 && VAR(224) == sound && _enableEnhancements) {
+		VAR(224) = 0;
+	}
+
 	_sound->stopSound(sound);
 }
 
@@ -2468,6 +2551,52 @@ void ScummEngine_v5::o5_startScript() {
 		// Wrong : startScript(125,[30,15]);
 		data[0] = 29;
 		data[1] = 10;
+	}
+
+	// WORKAROUND bug #1025: in Loom, using the stealth draft on the
+	// shepherds would crash the game because of a missing actor number for
+	// their first reaction line ("We are the masters of stealth"...).
+	if (_game.id == GID_LOOM && _game.version == 3 && _roomResource == 23 && script == 232 && data[0] == 0) {
+		byte shepherdActor;
+		bool buggyShepherdsEGArelease = false;
+
+		switch (vm.slot[_currentScript].number) {
+		case 422:
+		case 423:
+		case 424:
+		case 425:
+			// It is assumed that the original intent was that any shepherd could
+			// say this line.
+			shepherdActor = vm.slot[_currentScript].number % 10;
+			break;
+		default:
+			// Match the behavior of the Talkie version, if necessary
+			shepherdActor = 4;
+			break;
+		}
+
+		// WORKAROUND: in some EGA releases, actor 3 may have been removed from the
+		// current room, although he's still on screen (the EGA English 1.1 release
+		// fixed this). In ScummVM, this invalid use means that you'd see no reaction
+		// at all from any shepherd when using the stealth draft on him.  In the
+		// original interpreter, the leftmost shepherd still says his own line, though.
+		// Forcing his appearance or ignoring his removal doesn't fix this bug either.
+		//
+		// Having no reaction at all is confusing for the player, so if we detect this
+		// behavior, we force the workaround, for now.
+		if (isValidActor(3) && !_actors[3]->isInCurrentRoom()) {
+			buggyShepherdsEGArelease = true;
+			if (shepherdActor == 3)
+				shepherdActor = 4;
+		}
+
+		if (isValidActor(shepherdActor) && _actors[shepherdActor]->isInCurrentRoom() && (_enableEnhancements || buggyShepherdsEGArelease)) {
+			// Restore the missing line by attaching it to its actor
+			data[0] = shepherdActor;
+		} else {
+			// Otherwise, behave as the original, and just skip this line
+			return;
+		}
 	}
 
 	// Method used by original games to skip copy protection scheme
@@ -3019,11 +3148,19 @@ void ScummEngine_v5::decodeParseString() {
 						// I.e. in total 22650 frames.
 						offset = (int)(offset * 7.5 - 22500 - 2*75);
 
+						// Add the user-specified adjustment.
+						if (ConfMan.hasKey("loom_playback_adjustment")) {
+							int adjustment = ConfMan.getInt("loom_playback_adjustment");
+							offset += ((75 * adjustment) / 100);
+							if (offset < 0)
+								offset = 0;
+						}
+
 						// Slightly increase the delay (5 frames = 1/25 of a second).
 						// This noticably improves the experience in Loom CD.
 						delay = (int)(delay * 7.5 + 5);
 
-						_sound->playCDTrack(1, 0, offset, delay);
+						_sound->playCDTrack(1, 1, offset, delay);
 					}
 				} else {
 					error("ScummEngine_v5::decodeParseString: Unhandled case 8");
@@ -3044,6 +3181,20 @@ void ScummEngine_v5::decodeParseString() {
 					// speech line is missing its color parameter.
 					_string[textSlot].color = 0x0A;
 					printString(textSlot, _scriptPointer);
+				} else if (_game.id == GID_INDY3 && _game.platform == Common::kPlatformFMTowns && _roomResource == 80 &&
+						vm.slot[_currentScript].number == 201 && _enableEnhancements) {
+					// WORKAROUND: When Indy and his father escape the zeppelin
+					// with the biplane in the FM-TOWNS version, they share the
+					// same text color. Indeed, they're not given any explicit
+					// color, but for some reason this is only a problem on the
+					// FM-TOWNS. In order to determine who's who, we look for a
+					// `\xFF\x03` wait instruction or the `Junior` word, since
+					// only Henry Sr. uses them in this script.
+					if (strstr((const char *)_scriptPointer, "\xFF\x03") || strstr((const char *)_scriptPointer, "Junior"))
+						_string[textSlot].color = 0x0A;
+					else
+						_string[textSlot].color = 0x0E;
+					printString(textSlot, _scriptPointer);
 				} else if (_game.id == GID_INDY4 && _roomResource == 23 && vm.slot[_currentScript].number == 167 &&
 						len == 24 && 0==memcmp(_scriptPointer+16, "pregod", 6)) {
 					// WORKAROUND for bug #2961.
@@ -3054,6 +3205,24 @@ void ScummEngine_v5::decodeParseString() {
 					else
 						strcpy((char *)tmpBuf+16, "^19^");
 					printString(textSlot, tmpBuf);
+				} else if (_game.id == GID_INDY4 && _language == Common::EN_ANY && _roomResource == 10 &&
+						vm.slot[_currentScript].number == 209 && _actorToPrintStrFor == 4 && len == 81 &&
+						strcmp(_game.variant, "Floppy") != 0 && _enableEnhancements) {
+					// WORKAROUND: The English Talkie version of Indy4 changed Kerner's
+					// lines when he uses the phone booth in New York, but the text doesn't
+					// match the voice and it mentions the wrong person, in most releases.
+					// The fixed string is taken from the 1994 Macintosh release.
+					const char origText[] = "Fritz^ Fantastic\x10news!\xFF\x03I think we've found the treasure we\x10seek.";
+					const char newText[] = "Dr. Ubermann^ Fantastic\x10news!\xFF\x03We've found the treasure we\x10seek.";
+					if (strcmp((const char *)_scriptPointer + 16, origText) == 0) {
+						byte *tmpBuf = new byte[sizeof(newText) + 16];
+						memcpy(tmpBuf, _scriptPointer, 16);
+						memcpy(tmpBuf + 16, newText, sizeof(newText));
+						printString(textSlot, tmpBuf);
+						delete[] tmpBuf;
+					} else {
+						printString(textSlot, _scriptPointer);
+					}
 				} else if (_game.id == GID_MONKEY_EGA && _roomResource == 30 && vm.slot[_currentScript].number == 411 &&
 							strstr((const char *)_scriptPointer, "NCREDIT-NOTE-AMOUNT")) {
 					// WORKAROUND for bug #4886 (MI1EGA German: Credit text incorrect)

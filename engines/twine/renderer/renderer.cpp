@@ -62,7 +62,7 @@ void Renderer::init(int32 w, int32 h) {
 	_holomap_polytab_2_3 = &_polyTab[_engine->height() * 5];
 }
 
-IVec3 &Renderer::projectPositionOnScreen(int32 cX, int32 cY, int32 cZ) {
+IVec3 &Renderer::projectPositionOnScreen(int32 cX, int32 cY, int32 cZ) { // ProjettePoint
 	if (_isUsingOrthoProjection) {
 		_projPos.x = ((cX - cZ) * 24) / ISO_SCALE + _orthoProjPos.x;
 		_projPos.y = (((cX + cZ) * 12) - cY * 30) / ISO_SCALE + _orthoProjPos.y;
@@ -383,7 +383,7 @@ static FORCEINLINE int16 clamp(int16 x, int16 a, int16 b) {
 	return x < a ? a : (x > b ? b : x);
 }
 
-bool Renderer::computePolygons(int16 polyRenderType, const Vertex *vertices, int32 numVertices) {
+bool Renderer::computePolygons(int16 polyRenderType, const Vertex *vertices, int32 numVertices) { // ComputePolyMinMax
 	uint8 vertexParam1 = vertices[numVertices - 1].colorIndex;
 	int16 currentVertexX = vertices[numVertices - 1].x;
 	int16 currentVertexY = vertices[numVertices - 1].y;

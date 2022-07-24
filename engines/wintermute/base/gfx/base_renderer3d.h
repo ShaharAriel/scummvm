@@ -27,7 +27,9 @@
 #include "engines/wintermute/dctypes.h"
 #include "engines/wintermute/math/rect32.h"
 #include "engines/wintermute/math/vector2.h"
+
 #include "graphics/transform_struct.h"
+#include "graphics/surface.h"
 
 #include "math/matrix4.h"
 #include "math/ray.h"
@@ -113,6 +115,8 @@ protected:
 	Math::Matrix4 _lastViewMatrix;
 	Math::Matrix4 _projectionMatrix3d;
 	Rect32 _viewport3dRect;
+
+	void flipVertical(Graphics::Surface *s);
 };
 
 } // namespace Wintermute

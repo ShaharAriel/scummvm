@@ -25,11 +25,13 @@
 #include "ags/shared/core/platform.h"
 #define AGS_PLATFORM_DEFINES_PSP_VARS (AGS_PLATFORM_OS_IOS || AGS_PLATFORM_OS_ANDROID)
 
+#include "ags/lib/std/queue.h"
 #include "ags/shared/ac/game_version.h"
 #include "ags/shared/util/stdio_compat.h"
 #include "ags/shared/util/string.h"
 #include "ags/shared/util/string_types.h"
 #include "ags/shared/util/version.h"
+#include "ags/shared/font/wfn_font.h"
 #include "ags/shared/gui/gui_main.h"
 #include "ags/shared/script/cc_script.h"
 #include "ags/engine/ac/event.h"
@@ -59,7 +61,6 @@ namespace AGS3 {
 
 using String = AGS::Shared::String;
 using Version = AGS::Shared::Version;
-using StringMap = AGS::Shared::StringMap;
 
 namespace AGS {
 namespace Shared {
@@ -161,6 +162,7 @@ struct ScriptAudioChannel;
 struct ScriptDialog;
 struct ScriptDialogOptionsRendering;
 struct ScriptDrawingSurface;
+struct ScriptError;
 struct ScriptGUI;
 struct ScriptHotspot;
 struct ScriptInvItem;
@@ -297,7 +299,6 @@ public:
 	std::array<SOUNDCLIP *> *_audioChannels;
 	std::array<AmbientSound> *_ambient;
 
-	volatile bool _audio_doing_crossfade = false;
 	ScriptAudioChannel *_scrAudioChannel;
 	char _acaudio_buffer[256];
 	int _reserved_channel_count = 0;
@@ -349,17 +350,11 @@ public:
 	/**@}*/
 
 	/**
-	 * @defgroup agscc_errorglobals cc_error globals
+	 * @defgroup agscc_commonglobals cc_common globals
 	 * @ingroup agsglobals
 	 * @{
 	 */
-
-	int _ccError = 0;
-	int _ccErrorLine = 0;
-	String _ccErrorString;
-	String _ccErrorCallStack;
-	bool _ccErrorIsUserError = false;
-	const char *_ccCurScriptName = "";
+	ScriptError *_ccError;
 
 	/**@}*/
 
@@ -369,7 +364,11 @@ public:
 	 * @{
 	 */
 
-	ccInstance *_current_instance = nullptr;
+	// Instance thread stack holds a list of running or suspended script instances;
+	// In AGS currently only one thread is running, others are waiting in the queue.
+	// An example situation is repeatedly_execute_always callback running while
+	// another instance is waiting at the blocking action or Wait().
+	std::deque<ccInstance *> *_InstThreads;
 	// [IKM] 2012-10-21:
 	// NOTE: This is temporary solution (*sigh*, one of many) which allows certain
 	// exported functions return value as a RuntimeScriptValue object;
@@ -430,7 +429,6 @@ public:
 	 * @{
 	 */
 
-	CharacterExtras *_charextra = nullptr;
 	CharacterInfo *_playerchar = nullptr;
 	int32_t _sc_PlayerCharPtr = 0;
 	int _char_lowest_yp = 0;
@@ -524,7 +522,7 @@ public:
 	 * @{
 	 */
 
-	DialogTopic *_dialog = nullptr;
+	std::vector<DialogTopic> _dialog;
 	ScriptDialogOptionsRendering *_ccDialogOptionsRendering;
 	ScriptDrawingSurface *_dialogOptionsRenderingSurface = nullptr;
 
@@ -576,21 +574,25 @@ public:
 	AGS::Engine::IDriverDependantBitmap *_blankSidebarImage = nullptr;
 	AGS::Engine::IDriverDependantBitmap *_debugConsole = nullptr;
 
-	// actsps is used for temporary storage of the bitamp image
-	// of the latest version of the sprite
-	std::vector<Shared::Bitmap *> *_actsps;
-	std::vector<Engine::IDriverDependantBitmap *> *_actspsbmp;
-	// temporary cache of walk-behind for this actsps image
+	// actsps is used for temporary storage of the bitamp and texture
+	// of the latest version of the sprite (room objects and characters);
+	// objects sprites begin with index 0, characters are after MAX_ROOM_OBJECTS
+	std::vector<ObjTexture> *_actsps;
+	// Walk-behind textures (3D renderers only)
+	std::vector<ObjTexture> *_walkbehindobj;
 	// GUI surfaces
-	std::vector<Shared::Bitmap *> *_guibg;
-	std::vector<Engine::IDriverDependantBitmap *> *_guibgddb;
+	std::vector<ObjTexture> *_guibg;
+	// GUI control surfaces
+	std::vector<ObjTexture> *_guiobjbg;
+	// first control texture index of each GUI
+	std::vector<int> *_guiobjddbref;
+	// Overlay's cached transformed bitmap, for software mode
+	std::vector<std::unique_ptr<Shared::Bitmap> > *_overlaybmp;
 	// For debugging room masks
+	ObjTexture *_debugRoomMaskObj;
+	ObjTexture *_debugMoveListObj;
 	RoomAreaMask _debugRoomMask = kRoomAreaNone;
-	std::unique_ptr<Shared::Bitmap> *_debugRoomMaskBmp;
-	Engine::IDriverDependantBitmap *_debugRoomMaskDDB = nullptr;
 	int _debugMoveListChar = -1;
-	std::unique_ptr<Shared::Bitmap> *_debugMoveListBmp;
-	Engine::IDriverDependantBitmap *_debugMoveListDDB = nullptr;
 
 	bool _current_background_is_dirty = false;
 	// Room background sprite
@@ -604,13 +606,8 @@ public:
 	color *_palette;
 	COLOR_MAP *_maincoltable;
 
-	// GUI control surfaces
-	std::vector<Shared::Bitmap *> *_guiobjbg;
 	std::vector<Engine::IDriverDependantBitmap *> *_guiobjddb;
 	std::vector<Point> *_guiobjoff; // because surface may be larger than logical position
-	std::vector<int> *_guiobjddbref; // first control texture index of each GUI
-	// Overlay's cached transformed bitmap, for software mode
-	std::vector<Shared::Bitmap *> *_overlaybmp;
 
 	/**@}*/
 
@@ -713,6 +710,8 @@ public:
 	TTFFontRenderer *_ttfRenderer;
 	WFNFontRenderer *_wfnRenderer;
 	SplitLines *_Lines;
+	const WFNChar _emptyChar; // a dummy character to substitute bad symbols
+	Shared::Bitmap _wputblock_wrapper; // [IKM] argh! :[
 
 	/**@}*/
 
@@ -753,9 +752,16 @@ public:
 	ScriptInvItem *_scrInv;
 	ScriptDialog *_scrDialog = nullptr;
 	std::vector<ViewStruct> *_views;
-	CharacterCache *_charcache = nullptr;
+	// Cached character and object states, used to determine
+	// whether these require texture update
+	std::vector<ObjectCache> *_charcache;
 	ObjectCache *_objcache;
-	MoveList *_mls = nullptr;
+	std::vector<Point> *_screenovercache;
+	std::vector<CharacterExtras> *_charextra;
+	// MoveLists for characters and room objects; NOTE: 1-based array!
+	// object sprites begin with index 1, characters are after MAX_ROOM_OBJECTS + 1
+	std::vector<MoveList> *_mls;
+
 	GameSetup *_usetup;
 	AGS::Shared::String _saveGameDirectory;
 	AGS::Shared::String _saveGameSuffix;
@@ -855,6 +861,7 @@ public:
 	 */
 
 	const AGS::Engine::GfxFilterInfo *_allegroFilterInfo;
+	AGS::Engine::GfxFilterInfo *_scummvmGfxFilter;
 
 	/**@}*/
 
@@ -939,7 +946,6 @@ public:
 	 */
 
 	std::vector<AGS::Shared::GUIButton> *_guibuts;
-	int _numguibuts = 0;
 
 	/**@}*/
 
@@ -973,7 +979,6 @@ public:
 	 */
 
 	std::vector<AGS::Shared::GUIInvWindow> *_guiinv;
-	int _numguiinv = 0;
 
 	/**@}*/
 
@@ -984,7 +989,6 @@ public:
 	 */
 
 	std::vector<AGS::Shared::GUILabel> *_guilabels;
-	int _numguilabels = 0;
 
 	/**@}*/
 
@@ -995,7 +999,6 @@ public:
 	 */
 
 	std::vector<AGS::Shared::GUIListBox> *_guilist;
-	int _numguilist = 0;
 
 	/**@}*/
 
@@ -1017,7 +1020,6 @@ public:
 	 */
 
 	std::vector<AGS::Shared::GUISlider> *_guislider;
-	int _numguislider = 0;
 
 	/**@}*/
 
@@ -1028,7 +1030,6 @@ public:
 	 */
 
 	std::vector<AGS::Shared::GUITextBox> *_guitext;
-	int _numguitext = 0;
 
 	/**@}*/
 
@@ -1085,17 +1086,8 @@ public:
 	std::set<String> _tellInfoKeys;
 	int _loadSaveGameOnStartup = -1;
 
-#if ! AGS_PLATFORM_DEFINES_PSP_VARS
-	int _psp_video_framedrop = 1;
-	int _psp_ignore_acsetup_cfg_file = 0;
-	int _psp_clear_cache_on_room_change = 0; // clear --sprite cache-- when room is unloaded
-
-#if defined(AGS_PLATFORM_SCUMMVM) && AGS_PLATFORM_SCUMMVM
-	int _psp_audio_cachesize = 10;
-#endif
-	const char *_psp_game_file_name = "";
-	const char *_psp_translation = "default";
-
+#if 0
+	//! AGS_PLATFORM_DEFINES_PSP_VARS
 	int _psp_rotation = 0;
 	int _psp_gfx_renderer = 0;
 	int _psp_gfx_scaling = 1;
@@ -1268,6 +1260,7 @@ public:
 	NonBlockingScriptFunction *_runDialogOptionKeyPressHandlerFunc;
 	NonBlockingScriptFunction *_runDialogOptionTextInputHandlerFunc;
 	NonBlockingScriptFunction *_runDialogOptionRepExecFunc;
+	NonBlockingScriptFunction *_runDialogOptionCloseFunc;
 
 	ScriptSystem *_scsystem;
 
@@ -1276,12 +1269,6 @@ public:
 	std::vector<ccInstance *> *_moduleInstFork;
 	std::vector<RuntimeScriptValue> *_moduleRepExecAddr;
 	size_t _numScriptModules = 0;
-
-	// TODO: find out if these extra arrays are really necessary. This may be remains from the
-	// time when the symbol import table was holding raw pointers to char array.
-	std::vector<String> *_characterScriptObjNames;
-	String *_objectScriptObjNames;
-	std::vector<String> *_guiScriptObjNames;
 
 	/**@}*/
 
@@ -1292,7 +1279,15 @@ public:
 	 */
 
 	new_line_hook_type _new_line_hook = nullptr;
-	int _maxWhileLoops = 0;
+	// Minimal timeout: how much time may pass without any engine update
+	// before we want to check on the situation and do system poll
+	unsigned _timeoutCheckMs = 60u;
+	// Critical timeout: how much time may pass without any engine update
+	// before we abort or post a warning
+	unsigned _timeoutAbortMs = 0u;
+	// Maximal while loops without any engine update in between,
+	// after which the interpreter will abort
+	unsigned _maxWhileLoops = 0u;
 	ccInstance *_loadedInstances[MAX_LOADED_INSTANCES];
 
 	/**@}*/
@@ -1357,7 +1352,7 @@ public:
 	 */
 
 	AGS::Shared::Translation *_trans;
-	StringMap *_transtree = nullptr;
+	AGS::Shared::StringMap *_transtree = nullptr;
 	String _trans_name, _trans_filename;
 	long _lang_offs_start = 0;
 	char _transFileName[MAX_PATH_SZ] = { 0 };
@@ -1391,6 +1386,8 @@ public:
 	int _walkBehindsCachedForBgNum = 0;
 	WalkBehindMethodEnum _walkBehindMethod = DrawOverCharSprite;
 	int _walk_behind_baselines_changed = 0;
+	Rect _walkBehindAABB[MAX_WALK_BEHINDS]; // WB bounding box
+	std::vector<WalkBehindColumn> _walkBehindCols; // precalculated WB positions
 
 	/**@}*/
 

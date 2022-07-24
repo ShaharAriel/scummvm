@@ -70,17 +70,19 @@ WetEngine::WetEngine(OSystem *syst, const ADGameDescription *gd) : HypnoEngine(s
 	_c50LeftTurns = 0;
 	_c50RigthTurns = 0;
 
-    const chapterEntry *entry = rawChapterTable;
-    while (entry->id) {
+	const chapterEntry *entry = rawChapterTable;
+	while (entry->id) {
 		_ids.push_back(entry->id);
 		_chapterTable[entry->id] = entry;
 		entry++;
-    }
+	}
 
 	_healthString = getLocalizedString("health");
 	_scoreString = getLocalizedString("score");
 	_objString = getLocalizedString("objectives");
 	_targetString = getLocalizedString("target");
+	_directionString = getLocalizedString("direction");
+	_enterNameString = getLocalizedString("name");
 }
 
 void WetEngine::loadAssets() {
@@ -93,11 +95,13 @@ void WetEngine::loadAssets() {
 
 	if (_variant == "Demo" || _variant == "DemoHebrew")
 		loadAssetsDemoDisc();
+	else if (_variant == "Gen4")
+		loadAssetsGen4();
 	else if (_variant == "PCWDemo")
 		loadAssetsPCW();
 	else if (_variant == "PCGDemo")
 		loadAssetsPCG();
-	else if (_variant == "NonInteractive")
+	else if (_variant == "NonInteractive" || _variant == "NonInteractiveJoystick")
 		loadAssetsNI();
 	else
 		error("Invalid demo version: \"%s\"", _variant.c_str());
@@ -110,7 +114,7 @@ void WetEngine::loadAssetsDemoDisc() {
 	LibFile *missions = loadLib("", "wetlands/c_misc/missions.lib", encrypted);
 	Common::ArchiveMemberList files;
 	if (missions->listMembers(files) == 0)
-		error(failedDetectionError);
+		error("%s", failedDetectionError);
 
 	Hotspot h(MakeMenu);
 	Hotspots hs;
@@ -121,7 +125,7 @@ void WetEngine::loadAssetsDemoDisc() {
 	hs.push_back(h);
 
 	h.type = MakeHotspot;
-	h.rect = Common::Rect(0, 424, 233, 462);
+	h.rect = Common::Rect(0, 177, 116, 192);
 	h.actions.clear();
 	h.smenu = nullptr;
 	ChangeLevel *cl = new ChangeLevel("<intro>");
@@ -129,14 +133,14 @@ void WetEngine::loadAssetsDemoDisc() {
 
 	hs.push_back(h);
 
-	h.rect = Common::Rect(242, 424, 500, 480);
+	h.rect = Common::Rect(121, 177, 250, 200);
 	cl = new ChangeLevel("<movies>");
 	h.actions.clear();
 	h.actions.push_back(cl);
 
 	hs.push_back(h);
 
-	h.rect = Common::Rect(504, 424, 637, 480);
+	h.rect = Common::Rect(252, 177, 318, 200);
 	Quit *q = new Quit();
 	h.actions.clear();
 	h.actions.push_back(q);
@@ -144,6 +148,7 @@ void WetEngine::loadAssetsDemoDisc() {
 	hs.push_back(h);
 
 	Scene *start = new Scene();
+	start->resolution = "320x200";
 	start->hots = hs;
 	_levels["<start>"] = start;
 
@@ -182,13 +187,36 @@ void WetEngine::loadAssetsDemoDisc() {
 	movies->frameImage = "";
 	movies->frameNumber = 0;
 	_levels["<movies>"] = movies;
+	ArcadeShooting *arc;
 
 	if (_variant == "Demo") {
 		loadArcadeLevel("c31.mi_", "c52", "c52", "wetlands");
+		if (_restoredContentEnabled) {
+			arc = (ArcadeShooting*) _levels["c31.mi_"];
+			arc->segments[0].size = 1354;
+			arc->objKillsRequired[0] = 2;
+		}
 		loadArcadeLevel("c52.mi_", "<game_over>", "<quit>", "wetlands");
+		if (_restoredContentEnabled) {
+			arc = (ArcadeShooting*) _levels["c52.mi_"];
+			arc->segments[0].size = 2383;
+			arc->objKillsRequired[0] = 2;
+			arc->objKillsRequired[1] = 13;
+		}
 	} else if (_variant == "DemoHebrew") {
 		loadArcadeLevel("c31.mis", "c52.mis", "c52.mis", "wetlands");
+		if (_restoredContentEnabled) {
+			arc = (ArcadeShooting*) _levels["c31.mis"];
+			arc->segments[0].size = 1354;
+			arc->objKillsRequired[0] = 2;
+		}
 		loadArcadeLevel("c52.mis", "<game_over>", "<quit>", "wetlands");
+		if (_restoredContentEnabled) {
+			arc = (ArcadeShooting*) _levels["c52.mis"];
+			arc->segments[0].size = 2383;
+			arc->objKillsRequired[0] = 2;
+			arc->objKillsRequired[1] = 13;
+		}
 	} else {
 		error("Unsupported variant");
 	}
@@ -203,9 +231,57 @@ void WetEngine::loadAssetsDemoDisc() {
 	_nextLevel = "<start>";
 }
 
+void WetEngine::loadAssetsGen4() {
+
+	bool encrypted = false;
+	LibFile *missions = loadLib("", "c_misc/missions.lib", encrypted);
+	Common::ArchiveMemberList files;
+	if (missions->listMembers(files) == 0)
+		error("%s", failedDetectionError);
+
+	Transition *intro;
+	intro = new Transition("c31.mis");
+
+	intro->intros.push_back("c_misc/nw_logo.smk");
+	intro->intros.push_back("c_misc/h.s");
+	intro->intros.push_back("c_misc/w.s");
+	intro->frameImage = "c_misc/c.s";
+	intro->frameNumber = 0;
+	_levels["<start>"] = intro;
+
+	loadArcadeLevel("c31.mis", "c52.mis", "c52.mis", "");
+	ArcadeShooting *arc;
+	if (_restoredContentEnabled) {
+		arc = (ArcadeShooting*) _levels["c31.mis"];
+		arc->segments[0].size = 1354;
+		arc->objKillsRequired[0] = 2;
+	}
+	loadArcadeLevel("c52.mis", "<game_over>", "<quit>", "");
+	if (_restoredContentEnabled) {
+		arc = (ArcadeShooting*) _levels["c52.mis"];
+		arc->segments[0].size = 2383;
+		arc->objKillsRequired[0] = 2;
+		arc->objKillsRequired[1] = 13;
+	}
+
+	Transition *over = new Transition("<quit>");
+	over->intros.push_back("c_misc/g.s");
+	_levels["<game_over>"] = over;
+
+	loadLib("", "c_misc/fonts.lib", true);
+	loadFonts();
+	loadLib("sound/", "c_misc/sound.lib", true);
+	_nextLevel = "<start>";
+}
+
 void WetEngine::loadAssetsNI() {
-	playSound("wetmusic.81m", 0, 11025);
+	Common::String musicFile = _variant == "NonInteractive" ? "wetmusic.81m" : "c44_22k.raw";
+	int musicRate = _variant == "NonInteractive" ? 11025 : 22050;
+
 	Transition *movies = new Transition("<quit>");
+	movies->music = musicFile;
+	movies->musicRate = musicRate;
+	movies->playMusicDuringIntro = true;
 	movies->intros.push_back("demo/nw_logo.smk");
 	movies->intros.push_back("demo/hypnotix.smk");
 	movies->intros.push_back("demo/wetlogo.smk");
@@ -250,7 +326,7 @@ void WetEngine::loadAssetsPCW() {
 	LibFile *missions = loadLib("", "c_misc/missions.lib", false);
 	Common::ArchiveMemberList files;
 	if (missions->listMembers(files) == 0)
-		error(failedDetectionError);
+		error("%s", failedDetectionError);
 
 	Transition *intro = new Transition("c11.mis");
 	intro->intros.push_back("c_misc/nw_logo.smk");
@@ -259,6 +335,16 @@ void WetEngine::loadAssetsPCW() {
 	_levels["<start>"] = intro;
 
 	loadArcadeLevel("c11.mis", "<quit>", "<quit>", "");
+	ArcadeShooting *arc;
+	if (_restoredContentEnabled) {
+		arc = (ArcadeShooting*) _levels["c11.mis"];
+		arc->segments[0].size = 2002;
+		arc->objKillsRequired[0] = 1;
+		arc->transitions.push_back(ArcadeTransition("", "c11/c11p2.col", "", 0, 1501));
+		// These videos were not included in the demo, so we replace them
+		arc->defeatMissBossVideo = "c11\\c11d1.smk";
+		arc->defeatNoEnergySecondVideo = "c11\\c11d1.smk";
+	}
 
 	Transition *over = new Transition("<quit>");
 	_levels["<game_over>"] = over;
@@ -274,7 +360,7 @@ void WetEngine::loadAssetsPCG() {
 	LibFile *missions = loadLib("", "missions.lib", false);
 	Common::ArchiveMemberList files;
 	if (missions->listMembers(files) == 0)
-		error(failedDetectionError);
+		error("%s", failedDetectionError);
 
 	Transition *intro = new Transition("c31.mis");
 	intro->intros.push_back("nw_logo.smk");
@@ -285,6 +371,18 @@ void WetEngine::loadAssetsPCG() {
 	_levels["<start>"] = intro;
 
 	loadArcadeLevel("c31.mis", "<quit>", "<quit>", "");
+	ArcadeShooting *arc;
+	if (_restoredContentEnabled) {
+		arc = (ArcadeShooting*) _levels["c31.mis"];
+		arc->segments[0].size = 1354;
+		arc->objKillsRequired[0] = 2;
+		// These videos were not included in the demo, so we replace or remove them
+		arc->hitBoss1Video = "";
+		arc->hitBoss2Video = "";
+		arc->missBoss1Video = "";
+		arc->missBoss2Video = "";
+		arc->defeatMissBossVideo = "c31\\c31d1s.smk";
+	}
 
 	Transition *over = new Transition("<quit>");
 	over->intros.push_back("g.s");
@@ -300,7 +398,7 @@ void WetEngine::loadAssetsFullGame() {
 	LibFile *missions = loadLib("", "c_misc/missions.lib", true);
 	Common::ArchiveMemberList files;
 	if (missions == nullptr || missions->listMembers(files) == 0)
-		error(failedDetectionError);
+		error("%s", failedDetectionError);
 
 	Transition *logos = new Transition("<main_menu>");
 	logos->intros.push_back("c_misc/logo.smk");
@@ -453,6 +551,7 @@ void WetEngine::loadAssetsFullGame() {
 	loadLib("", "c_misc/fonts.lib", true);
 	loadFonts();
 	loadLib("sound/", "c_misc/sound.lib", true);
+	restoreScoreMilestones(0);
 	_nextLevel = "<start>";
 }
 
@@ -603,6 +702,7 @@ Common::Error WetEngine::loadGameStream(Common::SeekableReadStream *stream) {
 	else
 		_nextLevel = "<level_menu>";
 
+	restoreScoreMilestones(_score);
 	return Common::kNoError;
 }
 

@@ -20,7 +20,6 @@
  */
 
 #include "ags/engine/ac/character.h"
-#include "ags/engine/ac/character_cache.h"
 #include "ags/engine/ac/dialog.h"
 #include "ags/engine/ac/display.h"
 #include "ags/engine/ac/draw.h"
@@ -49,7 +48,7 @@
 #include "ags/engine/media/audio/audio_system.h"
 #include "ags/engine/platform/base/ags_platform_driver.h"
 #include "ags/plugins/plugin_engine.h"
-#include "ags/shared/script/cc_error.h"
+#include "ags/shared/script/cc_common.h"
 #include "ags/engine/script/exports.h"
 #include "ags/engine/script/script.h"
 #include "ags/engine/script/script_runtime.h"
@@ -107,7 +106,6 @@ void InitAndRegisterAudioObjects(GameSetupStruct &game) {
 
 // Initializes characters and registers them in the script system
 void InitAndRegisterCharacters(GameSetupStruct &game) {
-	_GP(characterScriptObjNames).resize(game.numcharacters);
 	for (int i = 0; i < game.numcharacters; ++i) {
 		game.chars[i].walking = 0;
 		game.chars[i].animating = 0;
@@ -125,8 +123,7 @@ void InitAndRegisterCharacters(GameSetupStruct &game) {
 		ccRegisterManagedObject(&game.chars[i], &_GP(ccDynamicCharacter));
 
 		// export the character's script object
-		_GP(characterScriptObjNames)[i] = game.chars[i].scrname;
-		ccAddExternalDynamicObject(_GP(characterScriptObjNames)[i], &game.chars[i], &_GP(ccDynamicCharacter));
+		ccAddExternalDynamicObject(game.chars[i].scrname, &game.chars[i], &_GP(ccDynamicCharacter));
 	}
 }
 
@@ -160,7 +157,6 @@ HError InitAndRegisterGUI(GameSetupStruct &game) {
 		_G(scrGui)[i].id = -1;
 	}
 
-	_GP(guiScriptObjNames).resize(game.numgui);
 	for (int i = 0; i < game.numgui; ++i) {
 		// link controls to their parent guis
 		HError err = _GP(guis)[i].RebuildArray();
@@ -168,11 +164,8 @@ HError InitAndRegisterGUI(GameSetupStruct &game) {
 			return err;
 		// export all the GUI's controls
 		export_gui_controls(i);
-		// copy the script name to its own memory location
-		// because ccAddExtSymbol only keeps a reference
-		_GP(guiScriptObjNames)[i] = _GP(guis)[i].Name;
 		_G(scrGui)[i].id = i;
-		ccAddExternalDynamicObject(_GP(guiScriptObjNames)[i], &_G(scrGui)[i], &_GP(ccDynamicGUI));
+		ccAddExternalDynamicObject(_GP(guis)[i].Name, &_G(scrGui)[i], &_GP(ccDynamicGUI));
 		ccRegisterManagedObject(&_G(scrGui)[i], &_GP(ccDynamicGUI));
 	}
 	return HError::None();
@@ -329,6 +322,7 @@ void AllocScriptModules() {
 	_GP(runDialogOptionKeyPressHandlerFunc).moduleHasFunction.resize(_G(numScriptModules), true);
 	_GP(runDialogOptionTextInputHandlerFunc).moduleHasFunction.resize(_G(numScriptModules), true);
 	_GP(runDialogOptionRepExecFunc).moduleHasFunction.resize(_G(numScriptModules), true);
+	_GP(runDialogOptionCloseFunc).moduleHasFunction.resize(_G(numScriptModules), true);
 	for (auto &val : _GP(moduleRepExecAddr)) {
 		val.Invalidate();
 	}
@@ -363,13 +357,15 @@ HGameInitError InitGameState(const LoadedGameEntities &ents, GameDataVersion dat
 	//
 	// 3. Allocate and init game objects
 	//
-	_G(charextra) = (CharacterExtras *)calloc(game.numcharacters, sizeof(CharacterExtras));
-	_G(charcache) = (CharacterCache *)calloc(1, sizeof(CharacterCache) * game.numcharacters + 5);
-	_G(mls) = (MoveList *)calloc(game.numcharacters + MAX_ROOM_OBJECTS + 1, sizeof(MoveList));
+	_GP(charextra).resize(game.numcharacters);
+	_GP(mls).resize(game.numcharacters + MAX_ROOM_OBJECTS + 1);
 	init_game_drawdata();
 	_GP(views) = std::move(ents.Views);
 
 	_GP(play).charProps.resize(game.numcharacters);
+	_G(dialog) = std::move(ents.Dialogs);
+	_G(old_dialog_scripts) = std::move(ents.OldDialogScripts);
+	_G(old_speech_lines) = std::move(ents.OldSpeechLines);
 	_G(old_dialog_scripts) = ents.OldDialogScripts;
 	_G(old_speech_lines) = ents.OldSpeechLines;
 
@@ -405,9 +401,9 @@ HGameInitError InitGameState(const LoadedGameEntities &ents, GameDataVersion dat
 	//
 	// 5. Initialize runtime state of certain game objects
 	//
-	for (int i = 0; i < _G(numguilabels); ++i) {
+	for (auto &label : _GP(guilabels)) {
 		// labels are not clickable by default
-		_GP(guilabels)[i].SetClickable(false);
+		label.SetClickable(false);
 	}
 	_GP(play).gui_draw_order.resize(game.numgui);
 	for (int i = 0; i < game.numgui; ++i)
@@ -421,7 +417,7 @@ HGameInitError InitGameState(const LoadedGameEntities &ents, GameDataVersion dat
 	// NOTE: we must do this before plugin start, because some plugins may
 	// require access to script API at initialization time.
 	//
-	ccSetScriptAliveTimer(150000);
+	ccSetScriptAliveTimer(10u, 1000u, 150000u);
 	ccSetStringClassImpl(&_GP(myScriptStringImpl));
 	setup_script_exports(base_api, compat_api);
 
@@ -444,7 +440,7 @@ HGameInitError InitGameState(const LoadedGameEntities &ents, GameDataVersion dat
 	_GP(scriptModules) = ents.ScriptModules;
 	AllocScriptModules();
 	if (create_global_script())
-		return new GameInitError(kGameInitErr_ScriptLinkFailed, _G(ccErrorString));
+		return new GameInitError(kGameInitErr_ScriptLinkFailed, cc_get_error().ErrorString);
 
 	return HGameInitError::None();
 }

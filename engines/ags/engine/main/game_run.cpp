@@ -49,6 +49,7 @@
 #include "ags/engine/ac/room.h"
 #include "ags/engine/ac/room_object.h"
 #include "ags/engine/ac/room_status.h"
+#include "ags/engine/ac/walk_behind.h"
 #include "ags/engine/debugging/debugger.h"
 #include "ags/engine/debugging/debug_log.h"
 #include "ags/engine/device/mouse_w32.h"
@@ -85,7 +86,7 @@ static bool ShouldStayInWaitMode();
 #define UNTIL_ANIMBTNEND 9
 
 static void ProperExit() {
-	_G(want_exit) = 0;
+	_G(want_exit) = false;
 	_G(proper_exit) = 1;
 	quit("||exit!");
 }
@@ -321,6 +322,7 @@ bool run_service_key_controls(KeyInput &out_key) {
 
 	// Alt+X, abort (but only once game is loaded)
 	if ((_G(displayed_room) >= 0) && (_GP(play).abort_key > 0 && agskey == _GP(play).abort_key)) {
+		Debug::Printf("Abort key pressed");
 		_G(check_dynamic_sprites_at_exit) = 0;
 		quit("!|");
 	}
@@ -340,14 +342,13 @@ bool run_service_key_controls(KeyInput &out_key) {
 	if ((agskey == eAGSKeyCodeCtrlD) && (_GP(play).debug_mode > 0)) {
 		// ctrl+D - show info
 		char infobuf[900];
-		int ff;
 		sprintf(infobuf, "In room %d %s[Player at %d, %d (view %d, loop %d, frame %d)%s%s%s",
 		        _G(displayed_room), (_G(noWalkBehindsAtAll) ? "(has no walk-behinds)" : ""), _G(playerchar)->x, _G(playerchar)->y,
 		        _G(playerchar)->view + 1, _G(playerchar)->loop, _G(playerchar)->frame,
 		        (IsGamePaused() == 0) ? "" : "[Game paused.",
 		        (_GP(play).ground_level_areas_disabled == 0) ? "" : "[Ground areas disabled.",
 		        (IsInterfaceEnabled() == 0) ? "[Game in Wait state" : "");
-		for (ff = 0; ff < _G(croom)->numobj; ff++) {
+		for (uint32_t ff = 0; ff < _G(croom)->numobj; ff++) {
 			if (ff >= 8) break; // buffer not big enough for more than 7
 			sprintf(&infobuf[strlen(infobuf)],
 			        "[Object %d: (%d,%d) size (%d x %d) on:%d moving:%s animating:%d slot:%d trnsp:%d clkble:%d",
@@ -362,7 +363,7 @@ bool run_service_key_controls(KeyInput &out_key) {
 		Display(infobuf);
 		int chd = _GP(game).playercharacter;
 		char bigbuffer[STD_BUFFER_SIZE] = "CHARACTERS IN THIS ROOM:[";
-		for (ff = 0; ff < _GP(game).numcharacters; ff++) {
+		for (int ff = 0; ff < _GP(game).numcharacters; ff++) {
 			if (_GP(game).chars[ff].room != _G(displayed_room)) continue;
 			if (strlen(bigbuffer) > 430) {
 				strcat(bigbuffer, "and more...");
@@ -376,7 +377,7 @@ bool run_service_key_controls(KeyInput &out_key) {
 			        _GP(game).chars[chd].x, _GP(game).chars[chd].y, _GP(game).chars[chd].z,
 			        _GP(game).chars[chd].idleview, _GP(game).chars[chd].idletime, _GP(game).chars[chd].idleleft,
 			        _GP(game).chars[chd].walking, _GP(game).chars[chd].animating, _GP(game).chars[chd].following,
-			        _GP(game).chars[chd].flags, _GP(game).chars[chd].wait, _G(charextra)[chd].zoom);
+			        _GP(game).chars[chd].flags, _GP(game).chars[chd].wait, _GP(charextra)[chd].zoom);
 		}
 		Display(bigbuffer);
 		return false;
@@ -501,6 +502,15 @@ static void check_keyboard_controls() {
 				}
 			}
 		}
+	}
+
+	// Built-in key-presses
+	if (kgn == _GP(usetup).key_save_game) {
+		do_save_game_dialog();
+		return;
+	} else if (kgn == _GP(usetup).key_restore_game) {
+		do_restore_game_dialog();
+		return;
 	}
 
 	if (!keywasprocessed) {
@@ -1032,7 +1042,7 @@ void update_polled_stuff_if_runtime() {
 	::AGS::g_events->pollEvents();
 
 	if (_G(want_exit)) {
-		_G(want_exit) = 0;
+		_G(want_exit) = false;
 		quit("||exit!");
 
 	} else if (_G(editor_debugging_initialized))

@@ -396,6 +396,24 @@ void ScummEngine_v2::decodeParseString() {
 	}
 	*ptr = 0;
 
+	// WORKAROUND bug #13473: in the French version of Maniac Mansion, the cutscene
+	// where Purple Tentacle is bullying Sandy hangs once Dr Fred is done talking,
+	// because his reaction line in shorter in this translation (which is unusual for
+	// French which tends to be more verbose) and the `unless (VAR_CHARCOUNT > 90)`
+	// loop in script #155 hasn't been ajusted for this shorter length.
+	//
+	// So we add some extra spaces at the end of the string if it's too short; this
+	// unblocks the cutscene and also lets Sandy react as intended.
+	//
+	// (Not using `_enableEnhancements` because some users could be really confused
+	// by the game hanging and they may not know about the Esc key.)
+	if (_game.id == GID_MANIAC && _game.platform != Common::kPlatformNES && _language == Common::FR_FRA && vm.slot[_currentScript].number == 155 && _roomResource == 31 && _actorToPrintStrFor == 9) {
+		while (ptr - buffer < 100) {
+			*ptr++ = ' ';
+		}
+		*ptr = 0;
+	}
+
 	int textSlot = 0;
 	_string[textSlot].xpos = 0;
 	_string[textSlot].ypos = 0;
@@ -431,6 +449,25 @@ void ScummEngine_v2::writeVar(uint var, int value) {
 		// Remap the cutscene exit key in earlier games
 		if (value == 4 || value == 13 || value == 64)
 			value = 27;
+	}
+
+	// WORKAROUND: According to the Maniac Mansion manual, you should be
+	// able to execute your command by clicking on the sentence line. But
+	// this does not work until later games. The main difference between
+	// the verb scripts (script 4) in Maniac Mansion and Zak McKracken is
+	// that Zak will set variable 34 when you click on the sentence line
+	// (as indicated by VAR_CLICK_AREA), and Maniac Mansion will not.
+	//
+	// When VAR_CLICK_AREA is 5, there is only one place where variable 34
+	// is initialized to 0, so that seems like a good place to inject our
+	// own check.
+
+	if (_game.id == GID_MANIAC && (_game.version == 1 || _game.version == 2)
+			&& _game.platform != Common::kPlatformNES
+			&& vm.slot[_currentScript].number == 4
+			&& VAR(VAR_CLICK_AREA) == kSentenceClickArea
+			&& var == 34 && value == 0 && _enableEnhancements) {
+		value = 1;
 	}
 
 	_scummVars[var] = value;
@@ -812,13 +849,13 @@ void ScummEngine_v2::o2_verbOps() {
 			vs->color = 1;
 			vs->hicolor = 1;
 			vs->dimcolor = 1;
-		} else if (_game.version == 1) {
-			vs->color = (_game.id == GID_MANIAC && (_game.features & GF_DEMO)) ? 16 : 5;
+		} else if (_game.platform == Common::kPlatformC64) {
+			vs->color = 5;
 			vs->hicolor = 7;
 			vs->dimcolor = 11;
 		} else {
 			vs->color = (_game.id == GID_MANIAC && (_game.features & GF_DEMO)) ? 13 : 2;
-			vs->hicolor = 14;
+			vs->hicolor = _hiLiteColorVerbArrow;
 			vs->dimcolor = 8;
 		}
 		vs->type = kTextVerbType;
@@ -967,7 +1004,7 @@ void ScummEngine_v2::drawPreposition(int index) {
 			{ " ", " in", " con", " su", " a" },     // Italian
 			{ " ", " en", " con", " en", " a" },     // Spanish
 			{ " ", " \x7f", " \x7f", " na", " \x7f" },// Russian
-			{ " ", " B", " SN", " SM", " M" },// Hebrew
+			{ " ", " B", " SN", " SM", " M" },       // Hebrew
 			};
 		int lang;
 		switch (_language) {
@@ -1051,10 +1088,11 @@ void ScummEngine_v2::o2_drawSentence() {
 	if (_game.platform == Common::kPlatformNES) {
 		_string[2].xpos = 16;
 		_string[2].color = 0;
-	} else if (_game.version == 1)
+	} else if (_game.platform == Common::kPlatformC64) {
 		_string[2].color = 16;
-	else
+	} else {
 		_string[2].color = 13;
+	}
 
 	byte string[80];
 	const char *ptr = _sentenceBuf.c_str();

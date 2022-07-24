@@ -79,11 +79,7 @@ String GetMainGameFileErrorText(MainGameFileErrorType err);
 
 typedef TypedCodeError<MainGameFileErrorType, GetMainGameFileErrorText> MainGameFileError;
 typedef ErrorHandle<MainGameFileError> HGameFileError;
-#ifdef AGS_PLATFORM_SCUMMVM
-typedef std::shared_ptr<Stream> UStream;
-#else
 typedef std::unique_ptr<Stream> UStream;
-#endif
 
 // MainGameSource defines a successfully opened main game file
 struct MainGameSource {
@@ -115,7 +111,7 @@ struct MainGameSource {
 // code refactoring.
 struct LoadedGameEntities {
 	GameSetupStruct &Game;
-	DialogTopic *&Dialogs;
+	std::vector<DialogTopic> Dialogs;
 	std::vector<ViewStruct> Views;
 	PScript                 GlobalScript;
 	PScript                 DialogScript;
@@ -135,7 +131,7 @@ struct LoadedGameEntities {
 	// speech texts displayed during dialog
 	std::vector<String>     OldSpeechLines;
 
-	LoadedGameEntities(GameSetupStruct &game, DialogTopic *&dialogs);
+	LoadedGameEntities(GameSetupStruct &game);
 	~LoadedGameEntities();
 };
 

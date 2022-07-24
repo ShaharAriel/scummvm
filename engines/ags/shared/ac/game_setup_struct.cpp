@@ -122,7 +122,7 @@ void GameSetupStruct::read_font_infos(Shared::Stream *in, GameDataVersion data_v
 		for (int i = 0; i < numfonts; ++i) {
 			fonts[i].YOffset = in->ReadInt32();
 			if (data_ver >= kGameVersion_341_2)
-				fonts[i].LineSpacing = Math::Max<int32_t>(0, in->ReadInt32());
+				fonts[i].LineSpacing = MAX<int32_t>(0, in->ReadInt32());
 		}
 	} else {
 		for (int i = 0; i < numfonts; ++i) {
@@ -130,7 +130,7 @@ void GameSetupStruct::read_font_infos(Shared::Stream *in, GameDataVersion data_v
 			fonts[i].Size = in->ReadInt32();
 			fonts[i].Outline = in->ReadInt32();
 			fonts[i].YOffset = in->ReadInt32();
-			fonts[i].LineSpacing = Math::Max<int32_t>(0, in->ReadInt32());
+			fonts[i].LineSpacing = MAX<int32_t>(0, in->ReadInt32());
 			AdjustFontInfoUsingFlags(fonts[i], flags);
 		}
 	}
@@ -367,9 +367,10 @@ void GameSetupStruct::ReadFromSaveGame_v321(Stream *in, char *gswas, ccScript *c
 }
 
 //=============================================================================
+#if defined (OBSOLETE)
 
 void ConvertOldGameStruct(OldGameSetupStruct *ogss, GameSetupStruct *gss) {
-	strcpy(gss->gamename, ogss->gamename);
+	snprintf(gss->gamename, sizeof(GameSetupStruct::gamename), "%s", ogss->gamename);
 	for (int i = 0; i < 20; i++)
 		gss->options[i] = ogss->options[i];
 	memcpy(&gss->paluses[0], &ogss->paluses[0], 256);
@@ -409,6 +410,7 @@ void ConvertOldGameStruct(OldGameSetupStruct *ogss, GameSetupStruct *gss) {
 	gss->compiled_script = ogss->compiled_script;
 	gss->numcursors = 10;
 }
+#endif // OBSOLETE
 
 void GameSetupStruct::ReadFromSavegame(Stream *in) {
 	// of GameSetupStruct

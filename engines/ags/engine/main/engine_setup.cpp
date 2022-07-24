@@ -27,6 +27,7 @@
 #include "ags/engine/ac/game_setup.h"
 #include "ags/shared/ac/game_setup_struct.h"
 #include "ags/engine/ac/game_state.h"
+#include "ags/engine/ac/global_game.h"
 #include "ags/engine/ac/mouse.h"
 #include "ags/engine/ac/runtime_defines.h"
 #include "ags/engine/ac/walk_behind.h"
@@ -107,10 +108,10 @@ void convert_objects_to_data_resolution(GameDataVersion filever) {
 		_GP(game).chars[i].y /= mul;
 	}
 
-	for (int i = 0; i < _G(numguiinv); ++i) {
-		_GP(guiinv)[i].ItemWidth /= mul;
-		_GP(guiinv)[i].ItemHeight /= mul;
-		_GP(guiinv)[i].OnResized();
+	for (auto &inv : _GP(guiinv)) {
+		inv.ItemWidth /= mul;
+		inv.ItemHeight /= mul;
+		inv.OnResized();
 	}
 }
 
@@ -228,7 +229,7 @@ void engine_post_gfxmode_mouse_setup(const Size &init_desktop) {
 	if (_GP(usetup).mouse_speed_def == kMouseSpeed_CurrentDisplay) {
 		Size cur_desktop;
 		if (sys_get_desktop_resolution(cur_desktop.Width, cur_desktop.Height) == 0)
-			_GP(mouse).SetSpeedUnit(Math::Max((float)cur_desktop.Width / (float)init_desktop.Width,
+			_GP(mouse).SetSpeedUnit(MAX((float)cur_desktop.Width / (float)init_desktop.Width,
 			                                  (float)cur_desktop.Height / (float)init_desktop.Height));
 	}
 
@@ -269,6 +270,9 @@ void engine_post_gfxmode_setup(const Size &init_desktop) {
 		engine_post_gfxmode_draw_setup(dm);
 	}
 	engine_post_gfxmode_mouse_setup(init_desktop);
+
+	// reset multitasking (may be overridden by the current display mode)
+	SetMultitasking(_GP(usetup).multitasking);
 
 	invalidate_screen();
 }

@@ -30,7 +30,7 @@
 #include "ags/engine/ac/gui.h"
 #include "ags/engine/ac/room_status.h"
 #include "ags/engine/ac/screen.h"
-#include "ags/shared/script/cc_error.h"
+#include "ags/shared/script/cc_common.h"
 #include "ags/engine/platform/base/ags_platform_driver.h"
 #include "ags/plugins/ags_plugin.h"
 #include "ags/plugins/plugin_engine.h"
@@ -133,7 +133,7 @@ void force_event(int evtyp, int ev1, int ev2, int ev3) {
 void process_event(const EventHappened *evp) {
 	RuntimeScriptValue rval_null;
 	if (evp->type == EV_TEXTSCRIPT) {
-		_G(ccError) = 0;
+		cc_clear_error();
 		RuntimeScriptValue params[2]{ evp->data2, evp->data3 };
 		if (evp->data3 > -1000)
 			QueueScriptFunction(kScInstGame, _G(tsnames)[evp->data1], 2, params);
@@ -170,6 +170,8 @@ void process_event(const EventHappened *evp) {
 			if (evp->data3 == EVROM_BEFOREFADEIN) {
 				_G(in_enters_screen)++;
 				run_on_event(GE_ENTER_ROOM, RuntimeScriptValue().SetInt32(_G(displayed_room)));
+			} else if (evp->data3 == EVROM_AFTERFADEIN) {
+				run_on_event(GE_ENTER_ROOM_AFTERFADE, RuntimeScriptValue().SetInt32(_G(displayed_room)));
 			}
 			//Debug::Printf("Running room interaction, event %d", evp->data3);
 		}
@@ -253,7 +255,6 @@ void process_event(const EventHappened *evp) {
 					boxhit = Math::Clamp(boxhit, 0, viewport.GetHeight());
 					int lxp = viewport.GetWidth() / 2 - boxwid / 2;
 					int lyp = viewport.GetHeight() / 2 - boxhit / 2;
-					_G(gfxDriver)->Vsync();
 					temp_scr->Blit(saved_backbuf, lxp, lyp, lxp, lyp,
 					               boxwid, boxhit);
 					render_to_screen();
@@ -325,9 +326,11 @@ void process_event(const EventHappened *evp) {
 			_G(gfxDriver)->DestroyDDB(ddb);
 		}
 
-	} else if (evp->type == EV_IFACECLICK)
+	} else if (evp->type == EV_IFACECLICK) {
 		process_interface_click(evp->data1, evp->data2, evp->data3);
-	else quit("process_event: unknown event to process");
+	} else {
+		quit("process_event: unknown event to process");
+	}
 }
 
 
@@ -358,7 +361,7 @@ void processallevents() {
 
 	_G(inside_processevent)++;
 
-	for (size_t i = 0; i < evtCopy->size(); ++i) {
+	for (size_t i = 0; i < evtCopy->size() && !_G(abort_engine); ++i) {
 		process_event(&(*evtCopy)[i]);
 
 		if (room_was != _GP(play).room_changes)
