@@ -161,7 +161,7 @@ byte *Sword2Engine::fetchCdtEntry(byte *animFile, uint16 frameNo) {
 	if (frameNo > animHead->noAnimFrames - 1)
 		error("fetchCdtEntry(animFile,%d) - anim only %d frames", frameNo, animHead->noAnimFrames);
 #endif
-    //start_anim + 44 + 15 + frameNo * 9(PC)
+
 	return fetchAnimHeader(animFile) + AnimHeader::size() + frameNo * CdtEntry::size();
 }
 

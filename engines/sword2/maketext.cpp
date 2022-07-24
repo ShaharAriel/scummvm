@@ -40,7 +40,6 @@
 //		  as a resource) on 5dec96.
 
 
-#include <algorithm>
 #include "common/system.h"
 #include "common/unicode-bidi.h"
 #include "common/textconsole.h"

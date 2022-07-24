@@ -178,8 +178,6 @@ void Logic::formText(int32 *params) {
 	// 'text + 2' to skip the first 2 bytes which form the line reference
 	// number
 
-
-
 	_speechTextBlocNo = _vm->_fontRenderer->buildNewBloc(
 		text + 2, _textX, _textY,
 		textWidth, obSpeech.getPen(),
