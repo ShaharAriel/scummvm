@@ -24,8 +24,6 @@
 
 #define FORBIDDEN_SYMBOL_EXCEPTION_exit
 
-#include <limits.h>
-
 #include "engines/advancedDetector.h"
 #include "engines/metaengine.h"
 #include "base/commandLine.h"
@@ -55,22 +53,15 @@ namespace Base {
 
 #ifndef DISABLE_COMMAND_LINE
 
-#if !defined(__DS__)
+#ifndef DISABLE_HELP_STRINGS
 static const char USAGE_STRING[] =
 	"%s: %s\n"
 	"Usage: %s [OPTIONS]... [GAME]\n"
 	"\n"
 	"Try '%s --help' for more options.\n"
 ;
-#endif
 
 // DONT FIXME: DO NOT ORDER ALPHABETICALLY, THIS IS ORDERED BY IMPORTANCE/CATEGORY! :)
-#if defined(ANDROID) || defined(__DS__) || defined(__3DS__)
-static const char HELP_STRING1[] = "%s None"; // save more data segment space
-static const char HELP_STRING2[] = "None";
-static const char HELP_STRING3[] = "None";
-static const char HELP_STRING4[] = "None";
-#else
 static const char HELP_STRING1[] =
 	"ScummVM - Graphical Adventure Game Interpreter\n"
 	"Usage: %s [OPTIONS]... [GAME]\n"
@@ -251,6 +242,7 @@ static const char *s_appName = "scummvm";
 static void NORETURN_PRE usage(MSVC_PRINTF const char *s, ...) GCC_PRINTF(1, 2) NORETURN_POST;
 
 static void usage(const char *s, ...) {
+#ifndef DISABLE_HELP_STRINGS
 	char buf[STRINGBUFLEN];
 	va_list va;
 
@@ -258,7 +250,6 @@ static void usage(const char *s, ...) {
 	vsnprintf(buf, STRINGBUFLEN, s, va);
 	va_end(va);
 
-#if !defined(__DS__)
 	printf(USAGE_STRING, s_appName, buf, s_appName, s_appName);
 #endif
 	exit(1);
@@ -1747,6 +1738,7 @@ bool processSettings(Common::String &command, Common::StringMap &settings, Commo
 		printf("Features compiled in: %s\n", gScummVMFeatures);
 		return true;
 	} else if (command == "help") {
+#ifndef DISABLE_HELP_STRINGS
 		printf(HELP_STRING1, s_appName);
 
 		Common::String s = HELP_STRING2;
@@ -1783,7 +1775,7 @@ bool processSettings(Common::String &command, Common::StringMap &settings, Commo
 		printf("%s)\n", s.c_str());
 
 		printf(HELP_STRING4);
-
+#endif
 		return true;
 	} else if (command == "auto-detect") {
 		bool resursive = settings["recursive"] == "true";

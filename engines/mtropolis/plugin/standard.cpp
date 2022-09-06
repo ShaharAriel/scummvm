@@ -180,7 +180,7 @@ private:
 	uint8 _channel;
 	uint8 _note;
 	uint8 _volume;
-	uint8 _program;
+	//uint8 _program;
 
 	bool _initialized;
 };
@@ -301,7 +301,7 @@ void MidiFilePlayerImpl::onTimer() {
 }
 
 MidiNotePlayerImpl::MidiNotePlayerImpl(const Common::SharedPtr<MidiCombinerSource> &outputDriver, uint32 timerRate)
-	: _timerRate(timerRate), _durationRemaining(0), _outputDriver(outputDriver), _channel(0), _note(0), _program(0), _initialized(false), _volume(100) {
+	: _timerRate(timerRate), _durationRemaining(0), _outputDriver(outputDriver), _channel(0), _note(0), /* _program(0), */_initialized(false), _volume(100) {
 }
 
 MidiNotePlayerImpl::~MidiNotePlayerImpl() {
@@ -1554,14 +1554,17 @@ void MultiMidiPlayer::stopNote(MidiNotePlayer *player) {
 }
 
 uint32 MultiMidiPlayer::getBaseTempo() const {
-	return _driver->getBaseTempo();
+	if (_driver)
+		return _driver->getBaseTempo();
+	return 1;
 }
 
 void MultiMidiPlayer::send(uint32 b) {
-	_driver->send(b);
+	if (_driver)
+		_driver->send(b);
 }
 
-CursorModifier::CursorModifier() : _applyWhen(Event::create()), _removeWhen(Event::create()), _cursorID(0) {
+CursorModifier::CursorModifier() : _cursorID(0) {
 }
 
 bool CursorModifier::respondsToEvent(const Event &evt) const {
@@ -1601,8 +1604,7 @@ const char *CursorModifier::getDefaultName() const {
 	return "Cursor Modifier";
 }
 
-STransCtModifier::STransCtModifier() : _enableWhen(Event::create()), _disableWhen(Event::create()),
-	_transitionType(0), _transitionDirection(0), _steps(0), _duration(0), _fullScreen(false) {
+STransCtModifier::STransCtModifier() : _transitionType(0), _transitionDirection(0), _steps(0), _duration(0), _fullScreen(false) {
 }
 
 bool STransCtModifier::load(const PlugInModifierLoaderContext &context, const Data::Standard::STransCtModifier &data) {
@@ -1731,9 +1733,46 @@ MiniscriptInstructionOutcome STransCtModifier::scriptSetSteps(MiniscriptThread *
 	return kMiniscriptInstructionOutcomeContinue;
 }
 
-MediaCueMessengerModifier::MediaCueMessengerModifier() : _isActive(false), _cueSourceType(kCueSourceInteger) {
+MediaCueMessengerModifier::CueSourceUnion::CueSourceUnion() : asUnset(0) {
+}
+
+MediaCueMessengerModifier::CueSourceUnion::~CueSourceUnion() {
+}
+
+template<class T, T (MediaCueMessengerModifier::CueSourceUnion::*TMember)>
+void MediaCueMessengerModifier::CueSourceUnion::construct(const T &value) {
+	T *field = &(this->*TMember);
+	new (field) T(value);
+}
+
+template<class T, T (MediaCueMessengerModifier::CueSourceUnion::*TMember)>
+void MediaCueMessengerModifier::CueSourceUnion::destruct() {
+	T *field = &(this->*TMember);
+	field->~T();
+}
+
+MediaCueMessengerModifier::MediaCueMessengerModifier() : _isActive(false), _cueSourceType(kCueSourceInvalid) {
 	_mediaCue.sourceModifier = this;
-	memset(&this->_cueSource, 0, sizeof(this->_cueSource));
+}
+
+MediaCueMessengerModifier::~MediaCueMessengerModifier() {
+	switch (_cueSourceType) {
+	case kCueSourceInteger:
+		_cueSource.destruct<int32, &CueSourceUnion::asInt>();
+		break;
+	case kCueSourceIntegerRange:
+		_cueSource.destruct<IntRange, &CueSourceUnion::asIntRange>();
+		break;
+	case kCueSourceVariableReference:
+		_cueSource.destruct<uint32, &CueSourceUnion::asVarRefGUID>();
+		break;
+	case kCueSourceLabel:
+		_cueSource.destruct<Label, &CueSourceUnion::asLabel>();
+		break;
+	default:
+		_cueSource.destruct<uint64, &CueSourceUnion::asUnset>();
+		break;
+	}
 }
 
 bool MediaCueMessengerModifier::load(const PlugInModifierLoaderContext &context, const Data::Standard::MediaCueMessengerModifier &data) {
@@ -1901,7 +1940,7 @@ void MediaCueMessengerModifier::visitInternalReferences(IStructuralReferenceVisi
 	_mediaCue.send.visitInternalReferences(visitor);
 }
 
-ObjectReferenceVariableModifier::ObjectReferenceVariableModifier() : _setToSourceParentWhen(Event::create()) {
+ObjectReferenceVariableModifier::ObjectReferenceVariableModifier() {
 }
 
 bool ObjectReferenceVariableModifier::load(const PlugInModifierLoaderContext &context, const Data::Standard::ObjectReferenceVariableModifier &data) {
@@ -2278,9 +2317,8 @@ bool ObjectReferenceVariableModifier::SaveLoad::loadInternal(Common::ReadStream 
 }
 
 
-MidiModifier::MidiModifier() : _executeWhen(Event::create()), _terminateWhen(Event::create()),
-							   _mode(kModeFile), _volume(100), _mutedTracks(0), _singleNoteChannel(0), _singleNoteNote(0),
-							   _plugIn(nullptr), _filePlayer(nullptr), _notePlayer(nullptr), _runtime(nullptr) {
+MidiModifier::MidiModifier() : _mode(kModeFile), _volume(100), _mutedTracks(0), /* _singleNoteChannel(0), _singleNoteNote(0), */
+							   _plugIn(nullptr), _filePlayer(nullptr), _notePlayer(nullptr) /*, _runtime(nullptr) */ {
 
 	memset(&this->_modeSpecific, 0, sizeof(this->_modeSpecific));
 }
@@ -2348,6 +2386,16 @@ bool MidiModifier::respondsToEvent(const Event &evt) const {
 
 VThreadState MidiModifier::consumeMessage(Runtime *runtime, const Common::SharedPtr<MessageProperties> &msg) {
 	if (_executeWhen.respondsTo(msg->getEvent())) {
+		const SubtitleTables &subtitleTables = runtime->getProject()->getSubtitles();
+		if (subtitleTables.modifierMapping) {
+			const Common::String *subSetIDPtr = subtitleTables.modifierMapping->findSubtitleSetForModifierGUID(getStaticGUID());
+			if (subSetIDPtr) {
+				// Don't currently support anything except play-on-start subs for MIDI
+				SubtitlePlayer subtitlePlayer(runtime, *subSetIDPtr, subtitleTables);
+				subtitlePlayer.update(0, 1);
+			}
+		}
+
 		if (_mode == kModeFile) {
 			if (_embeddedFile) {
 				debug(2, "MIDI (%x '%s'): Playing embedded file", getStaticGUID(), getName().c_str());
@@ -2517,7 +2565,7 @@ MiniscriptInstructionOutcome MidiModifier::scriptSetNoteDuration(MiniscriptThrea
 		DynamicValue converted;
 		if (!value.convertToType(DynamicValueTypes::kFloat, converted))
 			return kMiniscriptInstructionOutcomeFailed;
-		asDouble = converted.getFloat();	
+		asDouble = converted.getFloat();
 	}
 
 	if (_mode == kModeSingleNote) {

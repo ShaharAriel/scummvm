@@ -571,9 +571,12 @@ void ScummEngine_v6::drawDirtyScreenParts() {
 	// Call the original method.
 	ScummEngine::drawDirtyScreenParts();
 
-	// Remove all blasted objects/text again.
-	removeBlastTexts();
-	removeBlastObjects();
+	// Remove all blasted objects/text again, except
+	// for v7-8 which do that at a later time.
+	if (_game.version < 7) {
+		removeBlastTexts();
+		removeBlastObjects();
+	}
 }
 
 /**
@@ -628,14 +631,12 @@ void ScummEngine::drawStripToScreen(VirtScreen *vs, int x, int width, int top, i
 	assert(x >= 0 && width <= vs->pitch);
 	assert(_textSurface.getPixels());
 
-	// Some extra clipping/alignment for certain render modes. This is from the MI1EGA interpreter where it actually matters.
-	// The dithering patterns require the alignment, otherwise there will be visible glitches. For V3, the original interpreter
-	// actually does this for all graphics modes... 
-	if (_game.version > 2 && (_renderMode == Common::kRenderCGA || _renderMode == Common::kRenderHercG || _renderMode == Common::kRenderHercA)) {
-		top &= ~3;
-		if (bottom & 3)
-			bottom = (bottom + 4) & ~3;
-	}
+	// Some extra vertical alignment for certain render modes. It matters for MI1EGA. The dithering patterns require the alignment,
+	// otherwise there will be visible glitches. It can be found in the original interpreters.
+	int align = (_game.version > 2 && (_renderMode == Common::kRenderCGA || _renderMode == Common::kRenderHercG || _renderMode == Common::kRenderHercA)) ? 4 : (_enableEGADithering ? 2 : 1);
+	top &= ~(align - 1);
+	if (bottom & (align - 1))
+		bottom = (bottom + align) & ~(align - 1);
 
 	// Perform some clipping
 	if (width > vs->w - x)
@@ -780,6 +781,9 @@ void ScummEngine::drawStripToScreen(VirtScreen *vs, int x, int width, int top, i
 			y *= m;
 			width *= m;
 			height *= m;
+		} else if (_enableEGADithering) {
+			// EGA mode for certain VGA versions (MI2, LOOM Talkie)
+			src = ditherVGAtoEGA(pitch, x, y, width, height);
 		} else if (_game.platform == Common::kPlatformDOS && _game.version < 5) {
 			// CGA and Hercules modes for MM/ZAK v1/v2, INDY3, LOOM, MI1EGA
 			src = postProcessDOSGraphics(vs, pitch, x, y, width, height);
@@ -953,6 +957,10 @@ const byte *ScummEngine::postProcessDOSGraphics(VirtScreen *vs, int &pitch, int 
 
 	} else if (renderV1 && vs->number == kTextVirtScreen) {
 		// For EGA, the only colors that need remapping are for the kTextVirtScreen.
+		// ZAKv1 is the only game that is affected by this. The original interpreter
+		// will also apply this mapping in VGA mode (as we do) but not in MCGA mode.
+		// So, should we ever decide to offer a separate MCGA render mode, then we
+		// should skip this for that mode...
 		for (uint8 i = 0; i < ARRAYSIZE(tmpTxtColMap); ++i)
 			tmpTxtColMap[i] = _gdi->remapColorToRenderMode(i);
 		for (int h = height; h; --h)  {
@@ -962,6 +970,32 @@ const byte *ScummEngine::postProcessDOSGraphics(VirtScreen *vs, int &pitch, int 
 	}
 
 	return res;
+}
+
+const byte *ScummEngine::ditherVGAtoEGA(int &pitch, int &x, int &y, int &width, int &height) const {
+	pitch <<= 1;
+	int pitch2 = (pitch - width) << 1;
+
+	uint8 *dst0 = _hercCGAScaleBuf;
+	uint8 *dst1 = _hercCGAScaleBuf + pitch;
+	uint8 *src = _compositeBuf;
+
+	for (int i = height, st = 1 ^ (y & 1); i; --i, st ^= 1) {
+		for (int ii = width; ii; --ii) {
+			byte in = *src++;
+			*dst0++ = *dst1++ = _egaColorMap[st][in];
+			*dst0++ = *dst1++ = _egaColorMap[st ^ 1][in];
+		}
+		dst0 += pitch2;
+		dst1 += pitch2;
+	}
+
+	x <<= 1;
+	y <<= 1;
+	width <<= 1;
+	height <<= 1;
+
+	return _hercCGAScaleBuf;
 }
 
 #pragma mark -
@@ -1391,6 +1425,25 @@ void ScummEngine::drawBox(int x, int y, int x2, int y2, int color) {
 	if ((vs = findVirtScreen(y)) == nullptr)
 		return;
 
+	if (_game.version == 8) {
+		width = _screenWidth + 8;
+		height = _screenHeight;
+		int effX2 = x2;
+		int effX;
+		if (width >= x2) {
+			effX = x;
+		} else {
+			effX2 = width;
+			effX = x;
+			if (x < 0)
+				effX = 0;
+		}
+		backbuff = vs->getPixels(effX, y + _screenTop);
+		fill(backbuff, vs->pitch, color, effX2, y2, vs->format.bytesPerPixel);
+		markRectAsDirty(vs->number, effX, effX + effX2, y + _screenTop, y + y2 + _screenTop);
+		return;
+	}
+
 	// Indy4 Amiga always uses the room or verb palette map to match colors to
 	// the currently setup palette, thus we need to select it over here too.
 	// Done like the original interpreter.
@@ -1524,6 +1577,92 @@ void ScummEngine::drawBox(int x, int y, int x2, int y2, int color) {
 
 			fill(backbuff, vs->pitch, color, width, height, vs->format.bytesPerPixel);
 		}
+	}
+}
+
+void ScummEngine::drawLine(int x1, int y1, int x2, int y2, int color) {
+	int effColor, black, white;
+	int effX1, effY1;
+	int width, height, widthAccumulator, heightAccumulator, horizontalStrips, originalHeight;
+	int nudgeX, nudgeY;
+
+	bool canDrawPixel, noColorSpecified;
+
+	VirtScreen *vs;
+
+	if ((vs = findVirtScreen(y1)) == nullptr)
+		return;
+
+	black = getPaletteColorFromRGB(_currentPalette, 0x00, 0x00, 0x00);
+	white = getPaletteColorFromRGB(_currentPalette, 0xFC, 0xFC, 0xFC);
+
+	noColorSpecified = false;
+	effColor = color;
+	if (color == -1) {
+		noColorSpecified = true;
+		effColor = white;
+	}
+
+	effX1 = x1;
+	effY1 = y1;
+	width = abs(x2 - x1);
+	height = abs(y2 - y1);
+	originalHeight = height;
+
+	if (height <= width)
+		height = width;
+
+	widthAccumulator = 0;
+	heightAccumulator = 0;
+
+	drawPixel(vs, x1, y1, effColor);
+
+	if (height >= 0) {
+		horizontalStrips = height + 1;
+		do {
+			widthAccumulator += width;
+			canDrawPixel = false;
+			heightAccumulator += originalHeight;
+			if (widthAccumulator > height) {
+				canDrawPixel = true;
+				widthAccumulator -= height;
+				nudgeX = 1;
+				if (x2 - x1 < 0)
+					nudgeX = -1;
+				effX1 += nudgeX;
+			}
+
+			if (heightAccumulator > height) {
+				canDrawPixel = true;
+				heightAccumulator -= height;
+				nudgeY = 1;
+				if (y2 - y1 < 0)
+					nudgeY = -1;
+				effY1 += nudgeY;
+			}
+
+			if (canDrawPixel) {
+				drawPixel(vs, effX1, effY1, effColor);
+				if (noColorSpecified) {
+					if (effColor != white)
+						effColor = white;
+					else
+						effColor = black;
+				}
+			}
+
+			horizontalStrips--;
+		} while (horizontalStrips);
+	}
+}
+
+void ScummEngine::drawPixel(VirtScreen *vs, int x, int y, int16 color, bool useBackbuffer) {
+	if (x >= 0 && y >= 0 && _screenWidth + 8 > x && _screenHeight > y) {
+		if (useBackbuffer)
+			*(vs->getBackPixels(x, y + _screenTop - vs->topline)) = color;
+		else
+			*(vs->getPixels(x, y + _screenTop - vs->topline)) = color;
+		markRectAsDirty(vs->number, x, x + 1, y + _screenTop - vs->topline, y + 1 + _screenTop - vs->topline);
 	}
 }
 
@@ -4238,11 +4377,28 @@ void ScummEngine::dissolveEffect(int width, int height) {
 			mac_drawStripToScreen(vs, y, x, y + vs->topline, width, height);
 		else if (IS_ALIGNED(width, 4))
 			drawStripToScreen(vs, x, width, y, y + height);
-		else
-			// This is not suitable for any render mode that requires post-processing of the pixels (CGA; Hercules...).
-			// Currently, non of the targets in concern will arrive here, but we will have to look at this again if we
-			// want to support things like the EGA mode of LOOM VGA Talkie...
-			_system->copyRectToScreen(vs->getPixels(x, y), vs->pitch, x, y + vs->topline, width, height);
+		else {
+			const byte *src = vs->getPixels(x, y);
+			int pitch = vs->pitch;
+			y += vs->topline;
+			int wd = width;
+			int ht = height;
+
+			if (_enableEGADithering) {
+				if (is1x1Pattern) {
+					*_compositeBuf = *src;
+				} else {
+					for (int ii = 0; ii < height; ++ii) {
+						memcpy(_compositeBuf + width * ii, src, width);
+						src += pitch;
+					}
+				}
+				pitch = width;
+				src = ditherVGAtoEGA(pitch, x, y, wd, ht);
+			}
+
+			_system->copyRectToScreen(src, pitch, x, y, wd, ht);
+		}
 
 		// Test for 1x1 pattern...
 		canHalt |= is1x1Pattern && ++blits >= blitsBeforeRefresh;

@@ -38,6 +38,7 @@
 #include "common/textconsole.h"
 #include "graphics/surface.h"
 #include "graphics/sjis.h"
+#include "graphics/palette.h"
 
 #include "scumm/gfx.h"
 #include "scumm/detection.h"
@@ -386,6 +387,7 @@ public:
 	ResourceManager *_res = nullptr;
 
 	bool _enableEnhancements = false;
+	bool _useOriginalGUI = true;
 	bool _enableAudioOverride = false;
 
 protected:
@@ -473,22 +475,24 @@ protected:
 	virtual void clearClickedStatus();
 
 	// Cursor/palette
-	void updateCursor();
+	virtual void updateCursor();
 	virtual void animateCursor() {}
 	virtual void updatePalette();
-
+	virtual void setDefaultCursor() {};
+	virtual void setCursorTransparency(int a) {};
 	virtual void resetCursors() {}
 
 public:
 	void pauseGame();
 	void restart();
+	bool isUsingOriginalGUI();
 
 protected:
 	Dialog *_pauseDialog = nullptr;
 	Dialog *_messageDialog = nullptr;
 	Dialog *_versionDialog = nullptr;
 
-	void confirmExitDialog();
+	virtual void confirmExitDialog();
 	void confirmRestartDialog();
 	void pauseDialog();
 	void messageDialog(const Common::U32String &message);
@@ -619,6 +623,7 @@ protected:
 	void loadResource(Common::Serializer &ser, ResType type, ResId idx);
 	void loadResourceOLD(Common::Serializer &ser, ResType type, ResId idx);	// "Obsolete"
 
+	void copyHeapSaveGameToFile(int slot, const char *saveName);
 	virtual Common::SeekableReadStream *openSaveFileForReading(int slot, bool compat, Common::String &fileName);
 	virtual Common::WriteStream *openSaveFileForWriting(int slot, bool compat, Common::String &fileName);
 
@@ -657,6 +662,9 @@ protected:
 	byte _currentScript = 0xFF; // Let debug() work on init stage
 	int _scummStackPos = 0;
 	int _vmStack[256];
+
+	char _engineVersionString[50];
+	char _dataFileVersionString[50];
 
 	OpcodeEntry _opcodes[256];
 
@@ -849,8 +857,10 @@ protected:
 	virtual int actorToObj(int actor);
 	int getObjX(int obj);
 	int getObjY(int obj);
-	void getObjectXYPos(int object, int &x, int &y)	{ int dir; getObjectXYPos(object, x, y, dir); }
-	void getObjectXYPos(int object, int &x, int &y, int &dir);
+	void getObjectWidth(int object, int &width) { int x, y, dir; getObjectXYPos(object, x, y, dir, width); }
+	void getObjectXYPos(int object, int &x, int &y) { int dir, width; getObjectXYPos(object, x, y, dir, width); }
+	void getObjectXYPos(int object, int &x, int &y, int &dir) { int width; getObjectXYPos(object, x, y, dir, width); }
+	void getObjectXYPos(int object, int &x, int &y, int &dir, int &width);
 	int getObjOldDir(int obj);
 	int getObjNewDir(int obj);
 	int getObjectIndex(int object) const;
@@ -859,6 +869,7 @@ protected:
 	int findObject(int x, int y);
 	void findObjectInRoom(FindObjectInRoom *fo, byte findWhat, uint object, uint room);
 public:
+	int getObjectOrActorWidth(int object, int &width); // Used in v4 and below
 	int getObjectOrActorXY(int object, int &x, int &y);	// Used in actor.cpp, hence public
 	int getDist(int x, int y, int x2, int y2);	// Also used in actor.cpp
 protected:
@@ -959,6 +970,7 @@ public:
 protected:
 	ColorCycle _colorCycle[16];	// Palette cycles
 	uint8 _colorUsedByCycle[256];
+	Graphics::PaletteLookup _pl; // Used by the internal GUI
 
 	uint32 _ENCD_offs = 0, _EXCD_offs = 0;
 	uint32 _CLUT_offs = 0, _EPAL_offs = 0;
@@ -1001,6 +1013,8 @@ protected:
 	void drawRoomObjects(int arg);
 	void drawRoomObject(int i, int arg);
 	void drawBox(int x, int y, int x2, int y2, int color);
+	void drawLine(int x1, int y1, int x2, int y2, int color);
+	void drawPixel(VirtScreen *vs, int x, int y, int16 color, bool useBackbuffer = false);
 
 	void moveScreen(int dx, int dy, int height);
 
@@ -1038,9 +1052,14 @@ protected:
 	void stopCycle(int i);
 	virtual void palManipulateInit(int resID, int start, int end, int time);
 	void palManipulate();
+	uint32 findClosestPaletteColor(byte *palette, int paletteLength, byte r, byte g, byte b);
+
 public:
 	uint8 *getHEPaletteSlot(uint16 palSlot);
 	uint16 get16BitColor(uint8 r, uint8 g, uint8 b);
+	uint32 getPaletteColorFromRGB(byte *palette, byte r, byte g, byte b);
+	uint32 getPackedRGBColorFromPalette(byte *palette, uint32 color);
+	void fetchBlackAndWhite(uint32 &black, uint32 &white, byte *palette, int paletteEntries);
 	int remapPaletteColor(int r, int g, int b, int threshold);		// Used by Actor::remapActorPalette
 	void readPCEPalette(const byte **ptr, byte **dest, int numEntries);
 	void colorPCEToRGB(uint16 color, byte *r, byte *g, byte *b);
@@ -1051,8 +1070,6 @@ protected:
 	void setShadowPalette(int redScale, int greenScale, int blueScale, int startColor, int endColor, int start, int end);
 	virtual void darkenPalette(int redScale, int greenScale, int blueScale, int startColor, int endColor);
 
-	void setCursorFromBuffer(const byte *ptr, int width, int height, int pitch);
-
 public:
 	void markRectAsDirty(VirtScreenNumber virt, int left, int right, int top, int bottom, int dirtybit = 0);
 	void markRectAsDirty(VirtScreenNumber virt, const Common::Rect& rect, int dirtybit = 0) {
@@ -1062,6 +1079,8 @@ protected:
 	// Screen rendering
 	byte *_compositeBuf;
 	byte *_hercCGAScaleBuf = nullptr;
+	bool _enableEGADithering = false;
+	bool _supportsEGADithering = false;
 
 	virtual void drawDirtyScreenParts();
 	void updateDirtyScreen(VirtScreenNumber slot);
@@ -1074,6 +1093,7 @@ protected:
 	void mac_undrawIndy3CreditsText();
 
 	const byte *postProcessDOSGraphics(VirtScreen *vs, int &pitch, int &x, int &y, int &width, int &height) const;
+	const byte *ditherVGAtoEGA(int &pitch, int &x, int &y, int &width, int &height) const;
 
 public:
 	VirtScreen *findVirtScreen(int y);
@@ -1114,7 +1134,7 @@ protected:
 	 * If the leftmost bit is set, the strip (background) is dirty
 	 * needs to be redrawn.
 	 *
-	 * The second leftmost bit is set by removeBlastObject() and
+	 * The second leftmost bit is set by restoreBlastObjectsRect() and
 	 * restoreBackground(), but I'm not yet sure why.
 	 */
 	uint32 gfxUsageBits[410 * 3];
@@ -1171,6 +1191,9 @@ protected:
 	int remapRoomPaletteColor(int r, int g, int b);
 	void mapVerbPalette(int idx);
 	int remapVerbPaletteColor(int r, int g, int b);
+
+	// EGA dithering mode color tables for certain VGA games like MI2, LOOM Talkie...
+	byte *_egaColorMap[2];
 
 public:
 	uint16 _extraBoxFlags[65];
@@ -1234,6 +1257,7 @@ protected:
 	byte _charsetBuffer[512];
 
 	bool _keepText = false;
+	bool _actorShouldStopTalking = false;
 	byte _msgCount = 0;
 
 	int _nextLeft = 0, _nextTop = 0;
@@ -1254,7 +1278,7 @@ protected:
 	void drawString(int a, const byte *msg);
 	void fakeBidiString(byte *ltext, bool ignoreVerb) const;
 	void debugMessage(const byte *msg);
-	void showMessageDialog(const byte *msg);
+	virtual void showMessageDialog(const byte *msg);
 
 	virtual int convertMessageToString(const byte *msg, byte *dst, int dstSize);
 	int convertIntMessage(byte *dst, int dstSize, int var);
@@ -1266,9 +1290,9 @@ public:
 	Common::Language _language;	// Accessed by a hack in NutRenderer::loadFont
 
 	// Used by class ScummDialog:
-	virtual void translateText(const byte *text, byte *trans_buff);
+	virtual void translateText(const byte *text, byte *trans_buff, int transBufferSize);
 	// Old Hebrew games require reversing the dialog text.
-	bool reverseIfNeeded(const byte *text, byte *reverseBuf) const;
+	bool reverseIfNeeded(const byte *text, byte *reverseBuf, int reverseBufSize) const;
 	// Returns codepage that matches the game for languages that require it.
 	Common::CodePage getDialogCodePage() const;
 
@@ -1436,6 +1460,8 @@ public:
 	byte VAR_RIGHTBTN_HOLD = 0xFF;	// V6/V72HE/V7/V8
 	byte VAR_SAVELOAD_SCRIPT = 0xFF;	// V6/V7 (not HE)
 	byte VAR_SAVELOAD_SCRIPT2 = 0xFF;	// V6/V7 (not HE)
+	byte VAR_SAVELOAD_PAGE = 0xFF;		// V8
+	byte VAR_OBJECT_LABEL_FLAG = 0xFF;	// V8
 
 	// V6/V7 specific variables (FT & Sam & Max specific)
 	byte VAR_CHARSET_MASK = 0xFF;

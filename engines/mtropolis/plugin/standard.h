@@ -108,6 +108,7 @@ private:
 class MediaCueMessengerModifier : public Modifier {
 public:
 	MediaCueMessengerModifier();
+	~MediaCueMessengerModifier();
 
 	bool load(const PlugInModifierLoaderContext &context, const Data::Standard::MediaCueMessengerModifier &data);
 
@@ -126,13 +127,25 @@ private:
 		kCueSourceIntegerRange,
 		kCueSourceVariableReference,
 		kCueSourceLabel,
+
+		kCueSourceInvalid = -1,
 	};
 
 	union CueSourceUnion {
+		CueSourceUnion();
+		~CueSourceUnion();
+
 		int32 asInt;
 		IntRange asIntRange;
 		uint32 asVarRefGUID;
 		Label asLabel;
+		uint64 asUnset;
+
+		template<class T, T (CueSourceUnion::*TMember)>
+		void construct(const T &value);
+
+		template<class T, T (CueSourceUnion::*TMember)>
+		void destruct();
 	};
 
 	Common::SharedPtr<Modifier> shallowClone() const override;
@@ -297,14 +310,10 @@ private:
 	Common::SharedPtr<Data::Standard::MidiModifier::EmbeddedFile> _embeddedFile;
 
 	uint16 _mutedTracks;
-	uint8 _singleNoteChannel;
-	uint8 _singleNoteNote;
 
 	StandardPlugIn *_plugIn;
 	MidiFilePlayer *_filePlayer;
 	MidiNotePlayer *_notePlayer;
-
-	Runtime *_runtime;
 };
 
 class ListVariableModifier : public VariableModifier {

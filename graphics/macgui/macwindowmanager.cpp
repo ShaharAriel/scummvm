@@ -225,7 +225,7 @@ MacWindowManager::MacWindowManager(uint32 mode, MacPatterns *patterns, Common::L
 	CursorMan.showMouse(true);
 
 	loadDataBundle();
-	setDesktopMode(_mode);
+	setDesktopMode(mode);
 }
 
 MacWindowManager::~MacWindowManager() {
@@ -817,7 +817,7 @@ void MacWindowManager::drawDesktop() {
 
 		MacPlotData pd(_desktop, nullptr, &_patterns, kPatternCheckers, 0, 0, 1, _colorWhite);
 
-		Graphics::drawRoundRect1(r, kDesktopArc, _colorBlack, true, getDrawPixel(), &pd);
+		Graphics::drawRoundRect(r, kDesktopArc, _colorBlack, true, getDrawPixel(), &pd);
 	}
 }
 
@@ -1306,13 +1306,13 @@ void MacWindowManager::passPalette(const byte *pal, uint size) {
 	setFullRefresh(true);
 }
 
-uint MacWindowManager::findBestColor(uint32 color) {
+uint32 MacWindowManager::findBestColor(uint32 color) {
 	byte r, g, b;
 	decomposeColor(color, r, g, b);
 	return _paletteLookup.findBestColor(r, g, b);
 }
 
-uint MacWindowManager::findBestColor(byte cr, byte cg, byte cb) {
+uint32 MacWindowManager::findBestColor(byte cr, byte cg, byte cb) {
 	if (_pixelformat.bytesPerPixel == 4)
 		return _pixelformat.RGBToColor(cr, cg, cb);
 
