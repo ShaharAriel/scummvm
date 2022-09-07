@@ -78,6 +78,7 @@ Player::Player() :
 	_isMT32(false),
 	_isMIDI(false),
 	_isGM(false),
+	_isAdLibOrFMTowns(false),
 	_supportsPercussion(false),
 	_se(nullptr),
 	_vol_chan(0),
@@ -108,7 +109,10 @@ bool Player::startSound(int sound, MidiDriver *midi) {
 	_isMT32 = _se->isMT32(sound);
 	_isMIDI = _se->isMIDI(sound);
 	_supportsPercussion = _se->supportsPercussion(sound);
-	_isGM = (_supportsPercussion && !_isMT32); // Unlike IMuseInternal::isMIDI(), IMuseInternal::supportsPercussion() really filters out all non-MIDI things...
+	// IMuseInternal::supportsPercussion() filters out more non-MIDI things than IMuseInternal::isMIDI(),
+	// but still not the AdLib in Samnmax, so we make an extra test for that...
+	_isGM = (_supportsPercussion && !(_se->_game_id == GID_SAMNMAX && !_se->_midi_native && _se->_midi_adlib) && !_isMT32);
+	_isAdLibOrFMTowns = (_se->_midi_adlib && !_isMT32 && !_isGM);
 
 	_parts = nullptr;
 	_active = true;
@@ -1030,7 +1034,10 @@ void Player::fixAfterLoad() {
 		_isMT32 = _se->isMT32(_id);
 		_isMIDI = _se->isMIDI(_id);
 		_supportsPercussion = _se->supportsPercussion(_id);
-		_isGM = (_supportsPercussion && !_isMT32); // Unlike IMuseInternal::isMIDI(), IMuseInternal::supportsPercussion() really filters out all non-MIDI things...
+		// IMuseInternal::supportsPercussion() filters out more non-MIDI things than IMuseInternal::isMIDI(),
+		// but still not the AdLib in SAMNMAX, so we make an extra test for that...
+		_isGM = (_supportsPercussion && !(_se->_game_id == GID_SAMNMAX && !_se->_midi_native && _se->_midi_adlib) && !_isMT32);
+		_isAdLibOrFMTowns = (_se->_midi_adlib && !_isMT32 && !_isGM);
 	}
 }
 
