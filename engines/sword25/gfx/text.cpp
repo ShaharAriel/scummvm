@@ -27,6 +27,7 @@
  * Licensed under GNU GPL v2
  *
  */
+#include "common/unicode-bidi.h"
 
 #include "sword25/kernel/kernel.h"
 #include "sword25/kernel/outputpersistenceblock.h"
@@ -215,7 +216,8 @@ FontResource *Text::lockFontResource() {
 
 void Text::updateFormat() {
 	FontResource *fontPtr = lockFontResource();
-	assert(fontPtr);
+
+    assert(fontPtr);
 
 	updateMetrics(*fontPtr);
 
@@ -259,6 +261,10 @@ void Text::updateFormat() {
 					curLineHeight = curCharRect.height();
 			}
 
+            if (Kernel::getInstance()->getGfx()->isRTL()) {
+                _lines[curLine].text = Common::convertBiDiString(_lines[curLine].text, Common::kWindows1255);
+            }
+
 			_lines[curLine].bbox.right = curLineWidth;
 			_lines[curLine].bbox.bottom = curLineHeight;
 			if ((uint)_width < curLineWidth)
@@ -286,10 +292,14 @@ void Text::updateFormat() {
 			_height += bbox.height();
 		}
 	} else {
-		// No auto format, so all the text is copied to a single line.
-		_lines[0].text = _text;
-		_lines[0].bbox = Common::Rect(0, 0, _width, _height);
-	}
+        if (Kernel::getInstance()->getGfx()->isRTL()) {
+            _lines[0].text = Common::convertBiDiString(_text, Common::kWindows1255);
+        }else {
+            // No auto format, so all the text is copied to a single line.
+            _lines[0].text = _text;
+        }
+        _lines[0].bbox = Common::Rect(0, 0, _width, _height);
+    }
 
 	fontPtr->release();
 }

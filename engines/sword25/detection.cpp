@@ -81,6 +81,10 @@ public:
 	const DebugChannelDef *getDebugChannels() const override {
 		return debugFlagList;
 	}
+
+    bool canPlayUnknownVariants() const override {
+	    return true;
+    }
 };
 
 REGISTER_PLUGIN_STATIC(SWORD25_DETECTION, PLUGIN_TYPE_ENGINE_DETECTION, Sword25MetaEngineDetection);

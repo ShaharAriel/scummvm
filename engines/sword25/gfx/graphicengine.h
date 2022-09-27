@@ -231,8 +231,9 @@ public:
 	// -------------------
 	bool persist(OutputPersistenceBlock &writer) override;
 	bool unpersist(InputPersistenceBlock &reader) override;
+    bool isRTL();
 
-	static void ARGBColorToLuaColor(lua_State *L, uint color);
+    static void ARGBColorToLuaColor(lua_State *L, uint color);
 	static uint luaColorToARGBColor(lua_State *L, int stackIndex);
 
 protected:
@@ -266,6 +267,8 @@ private:
 
 	Common::ScopedPtr<RenderObjectManager> _renderObjectManagerPtr;
 
+    bool _isRTL;
+
 	struct DebugLine {
 		DebugLine(const Vertex &start, const Vertex &end, uint color) :
 			_start(start),
@@ -277,6 +280,7 @@ private:
 		Vertex _end;
 		uint _color;
 	};
+
 };
 
 } // End of namespace Sword25
