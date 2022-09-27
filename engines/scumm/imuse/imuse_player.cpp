@@ -112,7 +112,7 @@ bool Player::startSound(int sound, MidiDriver *midi) {
 	// IMuseInternal::supportsPercussion() filters out more non-MIDI things than IMuseInternal::isMIDI(),
 	// but still not the AdLib in Samnmax, so we make an extra test for that...
 	_isGM = (_supportsPercussion && !(_se->_game_id == GID_SAMNMAX && !_se->_midi_native && _se->_midi_adlib) && !_isMT32);
-	_isAdLibOrFMTowns = (_se->_midi_adlib && !_isMT32 && !_isGM);
+	_isAdLibOrFMTowns = (_se->_midi_adlib && !_isMT32 && !_isGM && _se->_soundType != MDT_PCSPK);
 
 	_parts = nullptr;
 	_active = true;
@@ -393,7 +393,7 @@ void Player::sysEx(const byte *p, uint16 len) {
 		if (a == ROLAND_SYSEX_ID) {
 			// Roland custom instrument definition.
 			// There is at least one (pointless) attempt in INDY4 Amiga to send this, too.
-			if ((_isMIDI && !_se->_isAmiga) || _isMT32) {
+			if ((_isMIDI && _se->_soundType != MDT_AMIGA) || _isMT32) {
 				part = getPart(p[0] & 0x0F);
 				if (part) {
 					part->_instrument.roland(p - 1);
@@ -573,13 +573,14 @@ int Player::setTranspose(byte relative, int b) {
 	if (b > 24 || b < -24 || relative > 1)
 		return -1;
 	if (relative)
-		b = transpose_clamp(_transpose + b, -24, 24);
+		b = transpose_clamp(_transpose + b, -7, 7);	
 
 	_transpose = b;
 
-	for (part = _parts; part; part = part->_next) {
-		part->set_transpose(part->_transpose);
-	}
+	// MI2 and INDY4 use boundaries of -12/12 for MT-32 and -24/24 for AdLib and PC Speaker, DOTT uses -12/12 for everything.
+	int lim = (_se->_game_id == GID_TENTACLE || _se->isNativeMT32()) ? 12 : 24;
+	for (part = _parts; part; part = part->_next)
+		part->set_transpose(part->_transpose, -lim, lim);
 
 	return 0;
 }
@@ -595,7 +596,10 @@ void Player::part_set_transpose(uint8 chan, byte relative, int8 b) {
 		return;
 	if (relative)
 		b = transpose_clamp(b + part->_transpose, -7, 7);
-	part->set_transpose(b);
+
+	// MI2 and INDY4 use boundaries of -12/12 for MT-32 and -24/24 for AdLib and PC Speaker, DOTT uses -12/12 for everything.
+	int lim = (_se->_game_id == GID_TENTACLE || _se->isNativeMT32()) ? 12 : 24;
+	part->set_transpose(b, -lim, lim);
 }
 
 bool Player::jump(uint track, uint beat, uint tick) {
@@ -1037,7 +1041,7 @@ void Player::fixAfterLoad() {
 		// IMuseInternal::supportsPercussion() filters out more non-MIDI things than IMuseInternal::isMIDI(),
 		// but still not the AdLib in SAMNMAX, so we make an extra test for that...
 		_isGM = (_supportsPercussion && !(_se->_game_id == GID_SAMNMAX && !_se->_midi_native && _se->_midi_adlib) && !_isMT32);
-		_isAdLibOrFMTowns = (_se->_midi_adlib && !_isMT32 && !_isGM);
+		_isAdLibOrFMTowns = (_se->_midi_adlib && !_isMT32 && !_isGM && _se->_soundType != MDT_PCSPK);
 	}
 }
 

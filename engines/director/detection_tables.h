@@ -593,7 +593,6 @@ static const PlainGameDescriptor directorGames[] = {
 	{ "trekship",			"Star Trek: Starship Creator"},
 	{ "trekshipaddon",		"Star Trek: Starship Creator Add-on Pack"},
 	{ "trektech",			"Star Trek: The Next Generation Interactive Technical Manual" },
-	{ "trekchair",			"Star Trek: Captain's Chair"},
 	{ "trekshipcreate",		"Star Trek: Starship Creator"},
 	{ "truthsfictions",		"Truths & Fictions: A Journey from Documentary to Digital Photography" },
 	{ "universe",			"Invisible Universe" },
@@ -917,6 +916,7 @@ static const PlainGameDescriptor directorGames[] = {
 	{ "peaceland",			"PeaceLand" },
 	{ "peepeebonbon",		"Pee Pee Bon Bon"},
 	{ "phantplanet",		"アミューズメント プラネット ファンタスマゴリア" },	// Amusement Planet Phantasmagoria
+	{ "phibos",				"フィボス ～彗星を追って～" },	// Phibos: Following the Comet
 	{ "picklesbook",		"Pickle's Book" },
 	{ "pinkgear",			"Pink Gear Collection" },
 	{ "pinkgear2",			"Pink Gear 2" },
@@ -1043,6 +1043,7 @@ static const PlainGameDescriptor directorGames[] = {
 	{ "keiri",				"経理入門" },										// Introduction to Accounting
 	{ "llla",				"Live Love Life AIDS" },
 	{ "mazebox",			"The Latest Works of MazeBox" },
+	{ "macintosho20",		"村上隆" }, // Macintosho exhibit disk #20 - Takashi Murakami's Hiropon
 	{ "microphonefiend",	"Microphone Fiend" },
 	{ "mmedia11",			"Masters of Media: The Making of サクラ大戦" },			// Sakura Taisen
 	{ "moderntimes",		"Charles Chaplin in Modern Times" },
@@ -1375,6 +1376,7 @@ static const PlainGameDescriptor directorGames[] = {
 	{ "mavisbeacon",		"Mavis Beacon Teaches Typing" },
 	{ "mechwarrior2",		"MechWarrior 2" },
 	{ "meetingmaker",		"Meeting Maker" },
+	{ "mindbrain",			"The Lost Mind of Dr. Brain" },
 	{ "mothergoosehires",	"Mixed-Up Mother Goose Deluxe" },
 	{ "msaccess",			"Microsoft Access" },
 	{ "msarcade",			"Microsoft Arcade" },
@@ -2240,6 +2242,8 @@ static const DirectorGameDescription gameDescriptions[] = {
 	MACGAME1("macbasics", "v5.0.3", "Macintosh Basics", "2ce360c9ea2da80a2c6d1040b0ad92dd", 403625, 310),
 	MACGAME1("mousebasics", "v4.5", "Mouse Basics", "9f0bb7ec7720e4f680ee3aa3d22c1c9d", 360662, 300),
 
+	MACGAME2_l("macintosho20", "", "DOB", "f5277c53bacd27936158dd3867e587e2", 392248, "data", "7379e695efd1cb858c3cb28ec2e8fac6", 1513714, Common::JA_JPN, 311),
+
 	MACGAME1("macweekvideo", "", "Click Here To Get Started!", "dc99af32d1580cd6177dc77d49a103d6", 383587, 313),
 
 	// HyperCard stack that calls a single movie using PlayAccel and MacroMind Player 3.1
@@ -2290,6 +2294,8 @@ static const DirectorGameDescription gameDescriptions[] = {
 	MACGAME1_l("mazebrew", "v2.0", "MazeBrew  v.2.0", "f5277c53bacd27936158dd3867e587e2", 491957, Common::JA_JPN, 311),
 
 	MACDEMO1("meetingmaker", "Demo", "Meeting Maker Demo", "19fe54e0b5c60405c7a88d9e4e032965", 721976, 300),
+
+	WINDEMO1("mindbrain", "Demo", "INSTALL.EXE", "54fbe8edce6731ba6e89c16fd3be8e6d", 2558723, 404),
 
 	// Original filename is ピーターと狼
 	// One gameplay mode supports General MIDI
@@ -2414,6 +2420,8 @@ static const DirectorGameDescription gameDescriptions[] = {
 
 	MACGAME1_l("peaceland", "", "PeaceLand 8m", "f5277c53bacd27936158dd3867e587e2", 392232, Common::JA_JPN, 311),
 	MACDEMO1_l("peaceland", "Demo", "PeaceLand", "276bee761e48a6fd709df77d5c2f60dd", 393877, Common::JA_JPN, 313),
+
+	WINGAME1t_l("phibos", "", "PHIBOS.EXE", "298f47fd72d3f3cee220c25dd797dbb4", 747095, Common::JA_JPN, 404),
 
 	// Original Mac-only release
 	MACGAME1_l("picklesbook", "", "Pickle's Book/Pickle", "c9ec74eea228500976ba680a362308bb", 456728, Common::JA_JPN, 300),
@@ -3880,6 +3888,7 @@ static const DirectorGameDescription gameDescriptions[] = {
 
 	MACGAME1("majestic", "", "Majestic", "01be45e7241194dad07938e7059b88e3", 483774, 400),
 	WINGAME1("majestic", "", "MAJESTIC.EXE", "624267f70253e5327981003a6fc0aeba", 23437631, 400),
+	WINGAME1t_l("majestic", "", "Maj32.exe", "d1cced6eff47da53845679d05b5d2bf3", 24166899, Common::DE_DEU, 400),
 
 	// Original filename is Make•A•Mug™ V1.0
 	MACGAME1("makeamug", "v1.0", "xn--MakeAMug V1.0-lt6gb312b", "4f8bb7ad0cbcec1815538ba15a899061", 304279, 400),

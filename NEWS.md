@@ -9,9 +9,15 @@ For a more comprehensive changelog of the latest experimental code, see:
      Interactive Fiction games.
    - Added support for GLK Scott Adams adventures 1-12 in the TI99/4A format.
    - Added support for Obsidian.
+   - Added support for Pink Panther: Passport to Peril.
+   - Added support for Pink Panther: Hokus Pokus Pink.
 
  General:
    - Reduced amount of false positives in Mass Add.
+   - Updated the Roland MT-32 emulation code to Munt mt32emu 2.7.0.
+
+ AGI:
+   - Improved support for French translations.
 
  AGOS:
    - Added option to disable the fade-out effects on room transition for
@@ -20,6 +26,9 @@ For a more comprehensive changelog of the latest experimental code, see:
  Kyra:
    - Added support for the Korean version of Legend of Kyrandia 1.
    - Added support for the Hebrew version of Legend of Kyrandia 3.
+
+ Queen:
+   - Added option for using a better font in Hebrew version.
 
  SCUMM:
    - Added support for CGA, CGA Composite, CGA black & white and Hercules modes
@@ -34,9 +43,24 @@ For a more comprehensive changelog of the latest experimental code, see:
    - Fixed a possible dead-end in the Ultimate Talkie Edition of Monkey Island 2,
      if one doesn't pick up the model lighthouse lens before Captain Dread brings
      Guybrush back to Scabb Island, at the end of Part II.
-   - Added support for original GUI dialogs to COMI.
+   - Fixed various original game bugs, oversights and continuity errors (only
+     when using the "Enable game-specific enhancements" setting).
+   - Added support for original GUI dialogs to v4-v8 LucasArts games.
    - Improved the decoding of some Western European game strings when they're
      displayed through ScummVM's interface, such as when pausing a game.
+   - Fixed the navigator head not pointing to some directions in Monkey
+     Island 1, in the original releases without the enhanced verb interface.
+   - Fixed slightly inaccurate text position in v4 games and in Loom v3.
+   - For Sam & Max, it is now possible to shoot down the text lines of the
+     final credits with the crosshair mouse cursor, just like in the original.
+   - Fixed lipsync issues in the final scene of Freddi Fish 4.
+   - Fixed The Dig and COMI loading cursors not being shown when they should.
+   - Improved the accuracy of some audio drivers, which was notably impacting
+     the pitch bending effect in the DOTT intro music.
+   - In COMI, only let Guybrush read the clock of Puerto Pollo in the English,
+     Italian and (fan-made) Russian versions of the game, matching the behavior
+     of the original interpreters (probably because of the poor results in the
+     other languages).
 
  Toon:
    - Made game menus behave like in the original.
