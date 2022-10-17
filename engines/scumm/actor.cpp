@@ -398,7 +398,16 @@ void Actor_v3::setupActorScale() {
 	// To workaround this, we override the scale of Henry. Since V3 games
 	// like Indy3 don't use the costume scale otherwise, this works fine.
 	// The scale factor 0x50 was determined by some guess work.
-	if (_number == 2 && _costume == 7 && _vm->_game.id == GID_INDY3 && _vm->_currentRoom == 12) {
+	//
+	// TODO: I can't reproduce this with the EGA DOS, EGA Macintosh and
+	// VGA DOS English releases, since Indy says he'd "better not" go back
+	// to the front of the castle at this point (script 77-201), as long
+	// as a special Bit is set for this (and it's set in room 21 entry
+	// script when Henry escapes from his room). Maybe there's a problem
+	// in the German release (and then it'd probably be better to restore
+	// that safeguard instead, since the game clearly doesn't expect you
+	// to go back inside the castle), but I don't own this version.  -dwa
+	if (_number == 2 && _costume == 7 && _vm->_game.id == GID_INDY3 && _vm->_currentRoom == 12 && _vm->_enableEnhancements) {
 		_scalex = 0x50;
 		_scaley = 0x50;
 	} else {
@@ -1372,16 +1381,19 @@ int Actor::remapDirection(int dir, bool is_walking) {
 	// actor is in the current room anyway.
 
 	if (!_ignoreBoxes || _vm->_game.id == GID_LOOM) {
-		specdir = _vm->_extraBoxFlags[_walkbox];
-		if (specdir) {
-			if (specdir & 0x8000) {
-				dir = specdir & 0x3FFF;
-			} else {
-				specdir = specdir & 0x3FFF;
-				if (specdir - 90 < dir && dir < specdir + 90)
-					dir = specdir;
-				else
-					dir = specdir + 180;
+		if (_walkbox != kOldInvalidBox) {
+			assert(_walkbox < ARRAYSIZE(_vm->_extraBoxFlags));
+			specdir = _vm->_extraBoxFlags[_walkbox];
+			if (specdir) {
+				if (specdir & 0x8000) {
+					dir = specdir & 0x3FFF;
+				} else {
+					specdir = specdir & 0x3FFF;
+					if (specdir - 90 < dir && dir < specdir + 90)
+						dir = specdir;
+					else
+						dir = specdir + 180;
+				}
 			}
 		}
 
@@ -2366,8 +2378,8 @@ void Actor::drawActorCostume(bool hitTestMode) {
 
 	if (!hitTestMode) {
 		// Record the vertical extent of the drawn actor
-		_top = bcr->_draw_top;
-		_bottom = bcr->_draw_bottom;
+		_top = bcr->_drawTop;
+		_bottom = bcr->_drawBottom;
 	}
 }
 
@@ -2385,9 +2397,9 @@ void Actor::prepareDrawActorCostume(BaseCostumeRenderer *bcr) {
 		bcr->_scaleY = _scaley;
 	}
 
-	bcr->_shadow_mode = _shadowMode;
+	bcr->_shadowMode = _shadowMode;
 	if (_vm->_game.version >= 5 && _vm->_game.heversion == 0) {
-		bcr->_shadow_table = _vm->_shadowPalette;
+		bcr->_shadowTable = _vm->_shadowPalette;
 	}
 
 	bcr->setCostume(_costume, (_vm->_game.heversion == 0) ? 0 : _heXmapNum);
@@ -2418,8 +2430,8 @@ void Actor::prepareDrawActorCostume(BaseCostumeRenderer *bcr) {
 
 	}
 
-	bcr->_draw_top = 0x7fffffff;
-	bcr->_draw_bottom = 0;
+	bcr->_drawTop = 0x7fffffff;
+	bcr->_drawBottom = 0;
 }
 
 void ActorHE::prepareDrawActorCostume(BaseCostumeRenderer *bcr) {
@@ -2434,7 +2446,7 @@ void ActorHE::prepareDrawActorCostume(BaseCostumeRenderer *bcr) {
 	bcr->_clipOverride = _clipOverride;
 
 	if (_vm->_game.heversion == 70) {
-		bcr->_shadow_table = _vm->_HEV7ActorPalette;
+		bcr->_shadowTable = _vm->_HEV7ActorPalette;
 	}
 
 	bcr->_skipLimbs = (_heSkipLimbs != 0);
@@ -2912,11 +2924,8 @@ void ScummEngine_v7::actorTalk(const byte *msg) {
 	playSpeech((byte *)_lastStringTag);
 
 	if (!usingOldSystem) {
-		if (VAR(VAR_HAVE_MSG)) {
-			if (_game.id == GID_DIG && _roomResource == 58 && msg[0] == ' ' && !msg[1])
-				return;
+		if (VAR(VAR_HAVE_MSG))
 			stopTalk();
-		}
 	} else {
 		if (!_keepText)
 			stopTalk();
