@@ -60,8 +60,7 @@ static const ADExtraGuiOptionsMap optionsList[] = {
 
 class Sword25MetaEngineDetection : public AdvancedMetaEngineDetection {
 public:
-	Sword25MetaEngineDetection() : AdvancedMetaEngineDetection(Sword25::
-    gameDescriptions, sizeof(ADGameDescription), sword25Game, optionsList) {
+	Sword25MetaEngineDetection() : AdvancedMetaEngineDetection(Sword25::gameDescriptions, sizeof(ADGameDescription), sword25Game, optionsList) {
 		_guiOptions = GUIO2(GUIO_NOMIDI, GAMEOPTION_ENGLISH_SPEECH);
 		_maxScanDepth = 2;
 		_directoryGlobs = directoryGlobs;
