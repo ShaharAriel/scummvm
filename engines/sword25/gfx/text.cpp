@@ -216,9 +216,9 @@ FontResource *Text::lockFontResource() {
 
 void Text::updateFormat() {
 	FontResource *fontPtr = lockFontResource();
+	assert(fontPtr);
 
-    assert(fontPtr);
-
+	bool isRTL = Kernel::getInstance()->getGfx()->isRTL();
 	updateMetrics(*fontPtr);
 
 	_lines.resize(1);
@@ -261,7 +261,7 @@ void Text::updateFormat() {
 					curLineHeight = curCharRect.height();
 			}
 
-            if (Kernel::getInstance()->getGfx()->isRTL()) {
+            if (isRTL) {
                 _lines[curLine].text = Common::convertBiDiString(_lines[curLine].text, Common::kWindows1255);
             }
 
@@ -292,7 +292,7 @@ void Text::updateFormat() {
 			_height += bbox.height();
 		}
 	} else {
-        if (Kernel::getInstance()->getGfx()->isRTL()) {
+        if (isRTL) {
             _lines[0].text = Common::convertBiDiString(_text, Common::kWindows1255);
         }else {
             // No auto format, so all the text is copied to a single line.
