@@ -25,7 +25,6 @@
 #include "common/endian.h"
 #include "common/file.h"
 
-
 #include "sky/disk.h"
 #include "sky/sky.h"
 #include "sky/struc.h"
