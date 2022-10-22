@@ -108,7 +108,7 @@ static const ADGameDescription gameDescriptions[] = {
 	{
 		"sword25",
 		"",
-		AD_ENTRY1s("lang_he.b25c","7b0e58798793e0dd87023ef112a11d0f", 1197217),
+		AD_ENTRY1s("lang_he.b25c", "7b0e58798793e0dd87023ef112a11d0f", 1197217),
 		Common::HE_ISR,
 		Common::kPlatformUnknown,
 		ADGF_NO_FLAGS,
